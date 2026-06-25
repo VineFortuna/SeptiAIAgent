@@ -1,0 +1,343 @@
+{
+  "business_name": "Sep7Ro Super Chess School",
+  "assistant_name": "Class Assistant",
+  "location": {
+    "en": [
+      "We're online only, all lessons run live over Zoom so there's no physical address to visit",
+      "No physical location, everything happens live on Zoom",
+      "We're 100% online, lessons run over Zoom so there's nowhere to visit in person"
+    ],
+    "ro": [
+      "Suntem doar online, toate lectiile sunt live pe Zoom, nu avem o adresa fizica",
+      "Nu avem locatie fizica, totul se intampla live pe Zoom",
+      "Suntem 100% online, lectiile sunt pe Zoom, nu ai unde sa vii in persoana"
+    ]
+  },
+  "business_hours": {
+    "en": [
+      "There aren't fixed walk-in hours, each group has its own weekly day and time, just tell me your availability and I'll match you with a group",
+      "No set walk-in hours since it's all group based, tell me your availability and I'll find a fit",
+      "There's no fixed schedule like a shop, each group has its own slot, just tell me when works for you"
+    ],
+    "ro": [
+      "Nu avem un program fix, fiecare grupa are ziua si ora ei, spune-mi disponibilitatea ta si te asortez cu o grupa",
+      "Nu functionam cu ore fixe ca un magazin, fiecare grupa are slotul ei, spune-mi cand iti convine",
+      "Nu e program clasic, fiecare grupa are ora ei, spune-mi disponibilitatea ta"
+    ]
+  },
+  "class_schedule": {
+    "en": [
+      "Each group meets once a week, same day and time every week, year-round, just tell me your availability and time zone and I'll find a fit",
+      "It's a weekly thing, same slot every week year round, just need your availability and time zone",
+      "Groups meet once a week at a fixed day and time, tell me your availability and time zone and I'll sort you out"
+    ],
+    "ro": [
+      "Fiecare grupa se intalneste o data pe saptamana, in aceeasi zi si ora, tot anul, spune-mi disponibilitatea si fusul orar si gasesc ceva potrivit",
+      "E saptamanal, acelasi slot tot anul, am nevoie de disponibilitatea ta si fusul orar",
+      "Grupele se intalnesc o data pe saptamana la o ora fixa, spune-mi disponibilitatea si fusul orar"
+    ]
+  },
+  "registration_link": "REPLACE WITH REGISTRATION LINK",
+  "website": {
+    "en": [
+      "https://sep7ro.com",
+      "Here you go: https://sep7ro.com",
+      "Check us out here: https://sep7ro.com"
+    ],
+    "ro": [
+      "https://sep7ro.com",
+      "Poftim: https://sep7ro.com",
+      "Ne gasesti aici: https://sep7ro.com"
+    ]
+  },
+  "contact_phone": "REPLACE WITH BUSINESS PHONE NUMBER",
+  "contact_email": "REPLACE WITH BUSINESS EMAIL",
+  "payment_methods": "REPLACE WITH ACCEPTED PAYMENT METHODS",
+  "cancellation_policy": {
+    "en": [
+      "Missed sessions can always be rescheduled, I guarantee a makeup session",
+      "No worries if you miss one, you always get a makeup session",
+      "Missed a class? Always rescheduled, that's guaranteed"
+    ],
+    "ro": [
+      "Sedintele pierdute se pot recupera mereu, e garantat",
+      "Nicio problema daca pierzi una, ai mereu o recuperare",
+      "Ai pierdut o clasa? Se recupereaza mereu, garantat"
+    ]
+  },
+  "rescheduling_policy": {
+    "en": [
+      "Missed sessions can always be rescheduled, I guarantee a makeup session",
+      "If you miss a session I'll always get you a makeup, no exceptions",
+      "Always reschedulable, just let me know when you miss one"
+    ],
+    "ro": [
+      "Sedintele pierdute se pot recupera mereu, e garantat",
+      "Daca pierzi o sedinta iti gasesc mereu o recuperare, fara exceptii",
+      "Se poate reprograma mereu, doar spune-mi cand pierzi una"
+    ]
+  },
+  "late_arrival_policy": "REPLACE WITH THE LATE ARRIVAL POLICY",
+  "what_to_bring": {
+    "en": [
+      "Just a computer or tablet with Zoom installed, no physical chessboard needed",
+      "Just a laptop or tablet with Zoom, that's it, no chessboard needed",
+      "Nothing fancy, a computer or tablet with Zoom installed and you're set"
+    ],
+    "ro": [
+      "Doar un calculator sau tableta cu Zoom instalat, nu e nevoie de tabla de sah",
+      "Doar un laptop sau tableta cu Zoom, atat, nu e nevoie de tabla",
+      "Nimic complicat, calculator sau tableta cu Zoom si esti pregatit"
+    ]
+  },
+  "what_to_wear": {
+    "en": [
+      "No dress code, nothing special needed for an online lesson",
+      "No dress code at all, come as is",
+      "Nothing special, it's an online lesson not a uniform thing"
+    ],
+    "ro": [
+      "Nu exista cod de vestimentatie, nu e nevoie de nimic special pentru o lectie online",
+      "Niciun cod de vestimentatie, vino exact cum esti",
+      "Nimic special, e o lectie online nu o uniforma"
+    ]
+  },
+  "age_requirements": {
+    "en": [
+      "I teach kids of different ages across a few age-based groups, just tell me your child's age and I'll find the right fit",
+      "No strict age limit, I've got groups for different ages, just tell me how old your child is",
+      "Kids of all sorts of ages, grouped by age range, tell me your child's age and I'll place them right"
+    ],
+    "ro": [
+      "Predau copii de varste diferite, in grupe pe varste, spune-mi cati ani are copilul si gasesc grupa potrivita",
+      "Nu e o limita stricta de varsta, am grupe pentru varste diferite, spune-mi cati ani are",
+      "Copii de toate varstele, grupati pe varsta, spune-mi cati ani are copilul tau"
+    ]
+  },
+  "experience_required": {
+    "en": [
+      "No experience needed, lessons work great for complete beginners too",
+      "Zero experience needed, total beginners do great",
+      "No prior chess needed at all, beginners are very welcome"
+    ],
+    "ro": [
+      "Nu e nevoie de experienta, lectiile sunt potrivite si pentru incepatori totali",
+      "Zero experienta necesara, incepatorii se descurca de minune",
+      "Nu e nevoie de nicio experienta anterioara, incepatorii sunt foarte bineveniti"
+    ]
+  },
+  "arrival_time": {
+    "en": [
+      "Just join a few minutes early with your camera, mic, and audio already tested",
+      "Hop in a few minutes early, camera and mic tested beforehand",
+      "Join a bit early with audio and camera already checked"
+    ],
+    "ro": [
+      "Vino cu cateva minute mai devreme, cu camera, microfonul si sunetul deja testate",
+      "Intra cu cateva minute inainte, camera si microfonul testate dinainte",
+      "Vino un pic mai devreme cu audio si camera deja verificate"
+    ]
+  },
+  "public_transit_information": {
+    "en": [
+      "No need, lessons are fully online so there's no travel involved",
+      "Nothing to get to, it's all online",
+      "No travel needed at all, everything's on Zoom"
+    ],
+    "ro": [
+      "Nu e nevoie, lectiile sunt complet online, nu implica nicio deplasare",
+      "Nu ai unde sa ajungi, totul e online",
+      "Nicio deplasare necesara, totul se intampla pe Zoom"
+    ]
+  },
+  "accessibility_information": {
+    "en": [
+      "Lessons are online so there's no physical accessibility barrier, if your child has specific needs just let me know and I'll do my best to accommodate",
+      "Being online removes most physical barriers, if your child has specific needs tell me and I'll do my best",
+      "No physical access issues since it's all on Zoom, let me know if there's anything specific I should account for"
+    ],
+    "ro": [
+      "Lectiile sunt online, asa ca nu exista bariere fizice, daca copilul are nevoi speciale spune-mi si fac tot posibilul sa ma adaptez",
+      "Fiind online, majoritatea barierelor fizice nu mai exista, daca e ceva specific spune-mi si fac tot ce pot",
+      "Nicio problema de acces fizic fiind totul pe Zoom, spune-mi daca e ceva de care ar trebui sa tin cont"
+    ]
+  },
+  "trial_class_policy": {
+    "en": [
+      "Every family gets one free demo lesson, about 50 minutes, before deciding whether to enroll, no obligation at all",
+      "You get one free demo first, about 50 minutes, zero obligation to continue after",
+      "First lesson's always free, around 50 minutes, no pressure to enroll after that"
+    ],
+    "ro": [
+      "Fiecare familie primeste o lectie demo gratuita, in jur de 50 minute, inainte sa decida daca se inscrie, fara nicio obligatie",
+      "Primesti o lectie demo gratuita mai intai, in jur de 50 minute, zero obligatie sa continui",
+      "Prima lectie e mereu gratuita, in jur de 50 minute, fara presiune sa te inscrii dupa"
+    ]
+  },
+  "drop_in_policy": {
+    "en": [
+      "I don't currently offer drop-in sessions, lessons are part of an ongoing weekly group, though everyone starts with a free demo lesson",
+      "No drop-ins right now, it's weekly groups, but everyone starts with a free demo",
+      "Not doing drop-in sessions at the moment, groups run weekly, the free demo gets you started though"
+    ],
+    "ro": [
+      "Nu ofer momentan sedinte drop-in, lectiile fac parte dintr-o grupa saptamanala continua, dar toata lumea incepe cu o lectie demo gratuita",
+      "Nu fac drop-in acum, grupele sunt saptamanale, dar demo-ul gratuit te ajuta sa incepi",
+      "Momentan nu am sedinte drop-in, grupele merg saptamanal, insa demo-ul gratuit e un bun punct de start"
+    ]
+  },
+  "private_lessons": "REPLACE WITH PRIVATE LESSON INFORMATION",
+  "group_size": {
+    "en": [
+      "Groups are kept small, often around 6 children, so every child gets attention",
+      "I keep groups small, usually around 6 kids, so everyone gets attention",
+      "Small groups, around 6 children typically, so no one gets lost in the crowd"
+    ],
+    "ro": [
+      "Grupele sunt mici, de obicei in jur de 6 copii, ca fiecare copil sa primeasca atentie",
+      "Tin grupele mici, de obicei in jur de 6 copii, ca toata lumea sa primeasca atentie",
+      "Grupe mici, in jur de 6 copii de regula, ca nimeni sa nu se piarda in multime"
+    ]
+  },
+  "waitlist_policy": "REPLACE WITH WAITLIST INFORMATION",
+  "class_availability_message": {
+    "en": [
+      "Spots can change, so let me check the current openings myself and confirm with you",
+      "Spots shift around, let me check what's open right now and confirm",
+      "Availability changes a lot, give me a sec to check current openings"
+    ],
+    "ro": [
+      "Locurile se pot schimba, las-ma sa verific disponibilitatea actuala si iti confirm",
+      "Disponibilitatea se schimba des, da-mi o secunda sa verific locurile libere",
+      "Locurile fluctueaza mult, iti confirm imediat ce verific"
+    ]
+  },
+  "groups": {
+    "exploratori": {
+      "display_name": { "en": "Explorers", "ro": "Exploratori" },
+      "description": {
+        "en": "Relaxed, curious kids who enjoy exploring the game at their own pace",
+        "ro": "Copii relaxati, curiosi, care exploreaza jocul in ritmul lor"
+      }
+    },
+    "strategi": {
+      "display_name": { "en": "Strategists", "ro": "Strategi" },
+      "description": {
+        "en": "Competitive kids who enjoy a challenge",
+        "ro": "Copii competitivi, care cauta provocari"
+      }
+    }
+  },
+  "pricing": {
+    "currencies": ["EUR", "GBP", "USD_CAN", "RON"],
+    "packages": {
+      "standard": { "lessons_per_month": 4, "display_name": { "en": "Standard", "ro": "Standard" } },
+      "accelerated": { "lessons_per_month": 9, "display_name": { "en": "Accelerated", "ro": "Accelerat" } },
+      "master": { "lessons_per_month": 13, "display_name": { "en": "Master", "ro": "Master" } }
+    },
+    "rates": {
+      "EUR": {
+        "standard": { "per_lesson": "17", "per_month": "68" },
+        "accelerated": { "per_lesson": "13", "per_month": "117" },
+        "master": { "per_lesson": "12", "per_month": "156" }
+      },
+      "GBP": {
+        "standard": { "per_lesson": "14", "per_month": "56" },
+        "accelerated": { "per_lesson": "11", "per_month": "99" },
+        "master": { "per_lesson": "10", "per_month": "130" }
+      },
+      "USD_CAN": {
+        "standard": { "per_lesson": "27", "per_month": "108" },
+        "accelerated": { "per_lesson": "21", "per_month": "189" },
+        "master": { "per_lesson": "19", "per_month": "247" }
+      },
+      "RON": {
+        "standard": { "per_lesson": "67", "per_month": "268" },
+        "accelerated": { "per_lesson": "54", "per_month": "486" },
+        "master": { "per_lesson": "49", "per_month": "637" }
+      }
+    }
+  },
+  "discounts": {
+    "en": [
+      "10% off if you enroll within the first 24 hours after the demo lesson",
+      "10% off for the 3-month package",
+      "10% off for each friend you refer; bring 7 friends and chess is free",
+      "25% sibling discount for a second enrolled child",
+      "50% twin discount for a second twin in the same class",
+      "Missed sessions can always be made up (guaranteed)"
+    ],
+    "ro": [
+      "10% reducere pentru inscrierea in primele 24h dupa lectia demo",
+      "10% reducere pentru pachetul de 3 luni",
+      "10% reducere pentru fiecare prieten adus; la 7 prieteni, sah gratuit",
+      "25% reducere pentru al doilea copil inscris din familie",
+      "50% reducere pentru al doilea geaman/geamana in aceeasi clasa",
+      "Sedintele absentate se pot recupera, garantat"
+    ]
+  },
+  "tech_setup_checklist": {
+    "en": [
+      "A computer or tablet with Zoom installed",
+      "A quiet place, away from the TV or other conversations",
+      "Camera, microphone, and audio tested before class",
+      "As much independence as possible for the child during the lesson",
+      "No chessboard needed"
+    ],
+    "ro": [
+      "Calculator sau tableta, cu Zoom instalat",
+      "Un loc linistit, fara TV sau alte discutii in jur",
+      "Camera, microfonul si audio testate inainte de clasa",
+      "Cat mai multa independenta pentru copil in timpul lectiei",
+      "Nu este nevoie de tabla de sah"
+    ]
+  },
+  "lichess_onboarding": {
+    "en": [
+      "Go to lichess.org and create a free account (choose an easy password the child can remember)",
+      "Activate Kid Mode: lichess.org/account/kid",
+      "Join our team \"Sep7Ro\": lichess.org/team/prosep (password: d4d5c4)",
+      "Optionally install the app or save lichess.org as a browser shortcut, and stay logged in",
+      "Practice in LEARN -> CHESS BASICS and FUNDAMENTALS",
+      "Then PLAY -> Play against the computer, level 1-3 (winning isn't the priority, just getting comfortable)"
+    ],
+    "ro": [
+      "Intrati pe lichess.org si creati un cont gratuit (o parola usoara, pe care copilul sa o tina minte)",
+      "Activati modul pentru copii: lichess.org/account/kid",
+      "Intrati in echipa noastra \"Sep7Ro\": lichess.org/team/prosep (parola: d4d5c4)",
+      "Optional, descarcati aplicatia sau salvati lichess.org ca shortcut in browser, si ramaneti logati",
+      "Exersati la LEARN -> CHESS BASICS si FUNDAMENTALS",
+      "Apoi PLAY -> Play against computer, nivel 1-3 (nu castigul e prioritatea, ci obisnuinta cu jocul)"
+    ]
+  },
+  "tournaments": {
+    "en": "Tournaments are optional. The first session is free as a trial, then there's a fee per session. Romania: Thursdays at 18:30 Romania time. UK: Thursdays at 18:00 UK time and Saturdays at 18:45 UK time (£9/session). Sessions last 75 minutes and are social, with kids from all classes playing together",
+    "ro": "Turneele sunt optionale. Prima participare este gratuita, de incercare, apoi se aplica o taxa per participare. Romania: joia, ora 18:30 ora Romaniei. UK: joia ora 18:00 si sambata ora 18:45 ora UK (9 lire/participare). Sesiunile dureaza 75 de minute si sunt sociale, cu copii din toate clasele"
+  },
+  "trust_links": {
+    "class_structure_page": "https://sep7ro.com/ro/clase-de-sah-pentru-copii/",
+    "benefits_of_chess_page": "https://sep7ro.com/ro/ce-castiga-sah-pentru-copii/",
+    "teacher_team_page": "https://sep7ro.com/ro/cine-sunt-profesorii/",
+    "facebook_page": "https://www.facebook.com/Sep7Ro",
+    "facebook_reviews": "https://www.facebook.com/Sep7Ro/reviews",
+    "google_reviews": "https://share.google/5IdeVxOnKx59l02OP",
+    "ruf_affiliation": "https://www.romanianunitedfund.org/chess_fun_2025",
+    "instagram": "https://www.instagram.com/sep7ro_super_chess_school/"
+  },
+  "demo_class_note": {
+    "en": "The free demo lesson is just for evaluation, no obligation to continue",
+    "ro": "Lectia demo gratuita e doar pentru evaluare, nu implica nicio obligatie de a continua"
+  },
+  "class_duration": {
+    "en": [
+      "Regular weekly lessons run 60 minutes with a short break, the free demo lesson runs about 50 minutes",
+      "Weekly lessons are 60 minutes with a quick break, the demo's around 50 minutes",
+      "Lessons run an hour with a short break, demo's a bit shorter at around 50 minutes"
+    ],
+    "ro": [
+      "Lectiile saptamanale obisnuite dureaza 60 de minute cu o pauza scurta, iar lectia demo gratuita dureaza aproximativ 50 de minute",
+      "Lectiile saptamanale dureaza 60 de minute cu o pauza scurta, demo-ul dureaza aproximativ 50 de minute",
+      "Lectiile dureaza o ora cu o pauza scurta, demo-ul e un pic mai scurt, in jur de 50 minute"
+    ]
+  }
+}
