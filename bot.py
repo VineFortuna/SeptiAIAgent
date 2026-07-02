@@ -61,6 +61,15 @@ CURRENCY_FORMAT: dict[str, tuple[str, str]] = {
     "RON": ("", " RON"),
 }
 
+# Human-readable labels for each internal bucket — used in the AI prompt so the
+# model never sees the internal "USD_CAN" code and writes it literally in replies.
+CURRENCY_DISPLAY: dict[str, str] = {
+    "EUR": "EUR",
+    "GBP": "GBP",
+    "USD_CAN": "USD / CAD",
+    "RON": "RON",
+}
+
 REQUIRED_INTAKE_FIELDS: tuple[str, ...] = (
     "child_language_pref",
     "timezone",
@@ -349,6 +358,7 @@ class ClassAssistant:
         self.model = os.getenv("OPENAI_MODEL", "gpt-5.5").strip()
         self.ai_enabled = bool(self.api_key)
         self.client = None
+        self._conversation_history: dict[str, list[dict[str, str]]] = {}
 
         if self.ai_enabled:
             from openai import OpenAI
@@ -401,8 +411,9 @@ class ClassAssistant:
             remaining = []
 
             for entry in queued:
-                reply_text = self.reply(entry["message"], entry["sender_phone"])
-                sent = self.customer_notifier(entry["sender_phone"], reply_text)
+                if "reply_text" not in entry:
+                    entry["reply_text"] = self.reply(entry["message"], entry["sender_phone"])
+                sent = self.customer_notifier(entry["sender_phone"], entry["reply_text"])
 
                 if not sent:
                     remaining.append(entry)
@@ -566,9 +577,13 @@ class ClassAssistant:
             if self._contains_any(lowered, ("engleza", "engleză", "english")):
                 return "en"
         elif field == "availability_pref":
-            if self._contains_any(lowered, ("saptamana", "săptămână", "weekday")):
+            has_weekday = self._contains_any(lowered, ("saptamana", "săptămână", "weekday"))
+            has_weekend = "weekend" in lowered
+            if has_weekday and has_weekend:
+                return "both"
+            if has_weekday:
                 return "weekday"
-            if "weekend" in lowered:
+            if has_weekend:
                 return "weekend"
         elif field == "group_pref":
             if "explorator" in lowered:
@@ -1116,6 +1131,7 @@ class ClassAssistant:
 
         lang = detect_language(message)
         currency_bucket, country_code = infer_currency_bucket(sender_phone)
+        currency_display = CURRENCY_DISPLAY.get(currency_bucket, currency_bucket)
 
         # Guardrail: only ever include this customer's own currency in the
         # data we hand to the model, so other regions' pricing can't leak,
@@ -1126,7 +1142,7 @@ class ClassAssistant:
         if isinstance(pricing, dict) and isinstance(pricing.get("rates"), dict):
             approved_data["pricing"] = {
                 **pricing,
-                "rates": {currency_bucket: pricing["rates"].get(currency_bucket, {})},
+                "rates": {currency_display: pricing["rates"].get(currency_bucket, {})},
             }
 
         approved_information = json.dumps(
@@ -1136,15 +1152,15 @@ class ClassAssistant:
         )
 
         currency_note = (
-            f"This customer's currency is {currency_bucket}. Only that "
+            f"This customer's currency is {currency_display}. Only that "
             f"currency's pricing is included below, on purpose, other "
             f"currencies have been removed. If asked about pricing in another "
             f"currency or country, say you only quote prices in "
-            f"{currency_bucket} for them and never guess a conversion."
+            f"{currency_display} for them and never guess a conversion."
             if country_code
             else (
                 f"This customer's country couldn't be determined from their "
-                f"phone number, so only {currency_bucket} pricing is included "
+                f"phone number, so only {currency_display} pricing is included "
                 f"below, on purpose. Default to it and mention you're "
                 f"defaulting to it."
             )
@@ -1194,11 +1210,15 @@ APPROVED INFORMATION:
 {approved_information}
 """.strip()
 
+        phone = self._normalize_phone(sender_phone)
+        prior = self._conversation_history.get(phone, [])
+        input_messages = [*prior, {"role": "user", "content": message}]
+
         try:
             response = self.client.responses.create(
                 model=self.model,
                 instructions=instructions,
-                input=message,
+                input=input_messages,
             )
 
             answer = response.output_text.strip()
@@ -1211,19 +1231,21 @@ APPROVED INFORMATION:
         phone = self._normalize_phone(sender_phone)
 
         intake_reply = self._handle_lead_intake(message, phone)
-
         if intake_reply is not None:
-            return intake_reply
+            reply_text = intake_reply
+        else:
+            rule_reply = self._rule_based_reply(message, sender_phone)
+            if rule_reply:
+                reply_text = rule_reply
+            elif self.ai_enabled:
+                reply_text = self._ai_reply(message, sender_phone)
+            else:
+                reply_text = self._handoff(detect_language(message))
 
-        rule_reply = self._rule_based_reply(
-            message,
-            sender_phone,
-        )
+        history = self._conversation_history.setdefault(phone, [])
+        history.append({"role": "user", "content": message})
+        history.append({"role": "assistant", "content": reply_text})
+        if len(history) > 20:
+            self._conversation_history[phone] = history[-20:]
 
-        if rule_reply:
-            return rule_reply
-
-        if self.ai_enabled:
-            return self._ai_reply(message, sender_phone)
-
-        return self._handoff(detect_language(message))
+        return reply_text

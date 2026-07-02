@@ -85,8 +85,23 @@ def health() -> Response:
 def whatsapp_webhook() -> Response:
     message = request.form.get("Body", "").strip()
     sender = request.form.get("From", "").replace("whatsapp:", "").strip()
+    num_media = int(request.form.get("NumMedia", "0"))
 
     response = MessagingResponse()
+
+    # Voice notes, images, stickers — reply immediately regardless of business hours
+    # since queuing an empty message and replying to it later is broken behavior.
+    if not message and num_media > 0:
+        response.message(
+            "I can only read text messages right now — feel free to type your question 🙂\n\n"
+            "Nu pot citi mesaje vocale sau imagini deocamdată — scrie-mi întrebarea 🙂"
+        )
+        return Response(str(response), status=200, mimetype="application/xml")
+
+    # Blank text with no media (accidental send) — silently no-op rather than
+    # creating a spurious lead or returning a confused greeting.
+    if not message:
+        return Response(str(response), status=200, mimetype="application/xml")
 
     if not is_within_business_hours():
         assistant.queue_message(message, sender)
