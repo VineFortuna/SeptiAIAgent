@@ -13,9 +13,15 @@ def test_romania_number_maps_to_ron() -> None:
     assert code == "40"
 
 
-def test_us_canada_number_maps_to_usd_can() -> None:
-    bucket, code = infer_currency_bucket("+14165550100")
-    assert bucket == "USD_CAN"
+def test_canadian_number_maps_to_cad() -> None:
+    bucket, code = infer_currency_bucket("+14165550100")  # 416 = Toronto
+    assert bucket == "CAD"
+    assert code == "1"
+
+
+def test_us_number_maps_to_usd() -> None:
+    bucket, code = infer_currency_bucket("+12125550100")  # 212 = New York
+    assert bucket == "USD"
     assert code == "1"
 
 

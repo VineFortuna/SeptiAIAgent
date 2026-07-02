@@ -33,9 +33,9 @@ def is_within_business_hours(now: datetime | None = None) -> bool:
 # Longest-prefix match against E.164 calling codes -> which pricing bucket to quote.
 # Starter list based on where the Sep7Ro diaspora audience is known to live; easy to
 # extend as leads arrive from new countries.
+# Note: +1 (US vs Canada) is handled separately via area code — see CANADIAN_AREA_CODES.
 COUNTRY_CODE_CURRENCY: dict[str, str] = {
     "44": "GBP",    # UK
-    "1": "USD_CAN",  # US + Canada share the NANP "+1" prefix
     "40": "RON",    # Romania
     "373": "RON",   # Moldova
     "49": "EUR",
@@ -52,21 +52,35 @@ COUNTRY_CODE_CURRENCY: dict[str, str] = {
 }
 DEFAULT_CURRENCY_BUCKET = "EUR"
 
+# All assigned Canadian NPA (area) codes. Used to tell a Canadian +1 number from
+# a US +1 number — the only reliable way since they share the same country code.
+CANADIAN_AREA_CODES: frozenset[str] = frozenset({
+    "204", "226", "236", "249", "250", "289",
+    "306", "343", "365", "367", "368", "382",
+    "403", "416", "418", "428", "431", "437", "438", "450",
+    "506", "514", "519", "548", "579", "581", "587",
+    "604", "613", "639", "647", "672",
+    "705", "709", "742", "778", "780", "782", "807", "819", "825",
+    "867", "873", "902", "905",
+})
+
 # (prefix, suffix) used to format an amount for display, matching how each
 # currency is written in Sep7Ro's own pricing sheet (e.g. "17 €", "£14", "67 RON").
 CURRENCY_FORMAT: dict[str, tuple[str, str]] = {
     "EUR": ("", " €"),
     "GBP": ("£", ""),
-    "USD_CAN": ("$", ""),
+    "USD": ("$", ""),
+    "CAD": ("$", " CAD"),
     "RON": ("", " RON"),
 }
 
-# Human-readable labels for each internal bucket — used in the AI prompt so the
-# model never sees the internal "USD_CAN" code and writes it literally in replies.
+# Human-readable labels for each bucket — used in the AI prompt so the model
+# writes the currency name correctly in replies.
 CURRENCY_DISPLAY: dict[str, str] = {
     "EUR": "EUR",
     "GBP": "GBP",
-    "USD_CAN": "USD / CAD",
+    "USD": "USD",
+    "CAD": "CAD",
     "RON": "RON",
 }
 
@@ -287,6 +301,11 @@ AI_TOPIC_HINTS: tuple[str, ...] = (
 def infer_currency_bucket(phone: str) -> tuple[str, str | None]:
     """Infer which pricing bucket to quote from an E.164 phone number's calling code."""
     digits = re.sub(r"[^0-9]", "", phone)
+
+    # +1 covers both US and Canada; use the 3-digit area code to tell them apart.
+    if digits and digits[0] == "1":
+        area_code = digits[1:4] if len(digits) >= 4 else ""
+        return ("CAD", "1") if area_code in CANADIAN_AREA_CODES else ("USD", "1")
 
     for length in (3, 2, 1):
         prefix = digits[:length]

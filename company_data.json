@@ -229,7 +229,7 @@
     }
   },
   "pricing": {
-    "currencies": ["EUR", "GBP", "USD_CAN", "RON"],
+    "currencies": ["EUR", "GBP", "USD", "CAD", "RON"],
     "packages": {
       "standard": { "lessons_per_month": 4, "display_name": { "en": "Standard", "ro": "Standard" } },
       "accelerated": { "lessons_per_month": 9, "display_name": { "en": "Accelerated", "ro": "Accelerat" } },
@@ -246,7 +246,12 @@
         "accelerated": { "per_lesson": "11", "per_month": "99" },
         "master": { "per_lesson": "10", "per_month": "130" }
       },
-      "USD_CAN": {
+      "USD": {
+        "standard": { "per_lesson": "27", "per_month": "108" },
+        "accelerated": { "per_lesson": "21", "per_month": "189" },
+        "master": { "per_lesson": "19", "per_month": "247" }
+      },
+      "CAD": {
         "standard": { "per_lesson": "27", "per_month": "108" },
         "accelerated": { "per_lesson": "21", "per_month": "189" },
         "master": { "per_lesson": "19", "per_month": "247" }
