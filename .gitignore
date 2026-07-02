@@ -5,4 +5,5 @@ __pycache__/
 *.pyc
 leads.json
 pending_messages.json
+bookings.json
 .claude/settings.local.json

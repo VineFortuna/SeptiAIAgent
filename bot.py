@@ -343,7 +343,7 @@ class ClassAssistant:
         customer_notifier: Callable[[str, str], bool] | None = None,
     ) -> None:
         self.company_data = self._load_json("company_data.json")
-        self.bookings = self._load_json("bookings.json")
+        self.bookings = self._load_leads(BASE_DIR / "bookings.json")
 
         self.leads_path = leads_path or (BASE_DIR / "leads.json")
         self.leads = self._load_leads(self.leads_path)
@@ -586,9 +586,9 @@ class ClassAssistant:
             if has_weekend:
                 return "weekend"
         elif field == "group_pref":
-            if "explorator" in lowered:
+            if self._contains_any(lowered, ("explorator", "explorer", "curious", "relaxed", "curios", "relaxat")):
                 return "exploratori"
-            if "strateg" in lowered:
+            if self._contains_any(lowered, ("strateg", "competit", "challenge", "provocare")):
                 return "strategi"
 
         return text.strip()
