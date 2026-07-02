@@ -6,4 +6,5 @@ __pycache__/
 leads.json
 pending_messages.json
 bookings.json
+conversation_history.json
 .claude/settings.local.json

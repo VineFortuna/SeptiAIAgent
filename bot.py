@@ -84,6 +84,12 @@ CURRENCY_DISPLAY: dict[str, str] = {
     "RON": "RON",
 }
 
+CONSTRAINED_FIELD_VALUES: dict[str, frozenset[str]] = {
+    "child_language_pref": frozenset({"ro", "en"}),
+    "availability_pref": frozenset({"weekday", "weekend", "both"}),
+    "group_pref": frozenset({"exploratori", "strategi"}),
+}
+
 REQUIRED_INTAKE_FIELDS: tuple[str, ...] = (
     "child_language_pref",
     "timezone",
@@ -361,6 +367,7 @@ class ClassAssistant:
         notifier: Callable[[str], bool] | None = None,
         pending_path: Path | None = None,
         customer_notifier: Callable[[str, str], bool] | None = None,
+        history_path: Path | None = None,
     ) -> None:
         self.company_data = self._load_json("company_data.json")
         self.bookings = self._load_leads(BASE_DIR / "bookings.json")
@@ -374,11 +381,13 @@ class ClassAssistant:
         self.pending: dict[str, list[dict[str, str]]] = self._load_leads(self.pending_path)
         self.customer_notifier = customer_notifier or send_whatsapp_message
 
+        self.history_path = history_path or (BASE_DIR / "conversation_history.json")
+        self._conversation_history: dict[str, list[dict[str, str]]] = self._load_leads(self.history_path)
+
         self.api_key = os.getenv("OPENAI_API_KEY", "").strip()
         self.model = os.getenv("OPENAI_MODEL", "gpt-5.5").strip()
         self.ai_enabled = bool(self.api_key)
         self.client = None
-        self._conversation_history: dict[str, list[dict[str, str]]] = {}
 
         if self.ai_enabled:
             from openai import OpenAI
@@ -410,6 +419,28 @@ class ClassAssistant:
     def _save_pending(self) -> None:
         with self.pending_path.open("w", encoding="utf-8") as file:
             json.dump(self.pending, file, ensure_ascii=False, indent=2)
+
+    def _save_history(self) -> None:
+        with self.history_path.open("w", encoding="utf-8") as file:
+            json.dump(self._conversation_history, file, ensure_ascii=False, indent=2)
+
+    def _try_extract_field(self, field: str, message: str) -> str | None:
+        """Try to pull an answer for `field` from a message without explicitly asking.
+
+        Only attempted for constrained-value fields (language/availability/group) and
+        age — timezone and prior_experience are too open-ended for silent extraction.
+        Returns the normalized value on a confident signal, None otherwise.
+        """
+        if field in CONSTRAINED_FIELD_VALUES:
+            normalized = self._normalize_intake_answer(field, message)
+            return normalized if normalized in CONSTRAINED_FIELD_VALUES[field] else None
+
+        if field == "child_age":
+            m = re.search(r"\b(\d+)\s*(?:ani?|years?\s*old|yo)\b", message.lower())
+            if m and 3 <= int(m.group(1)) <= 18:
+                return m.group(1)
+
+        return None
 
     def queue_message(self, message: str, sender_phone: str) -> None:
         """Store an off-hours message to be answered once business hours resume."""
@@ -610,6 +641,10 @@ class ClassAssistant:
                 return "exploratori"
             if self._contains_any(lowered, ("strateg", "competit", "challenge", "provocare")):
                 return "strategi"
+        elif field == "child_age":
+            m = re.search(r"\b(\d+)\s*(?:ani?|years?\s*old|yo)\b", lowered)
+            if m and 3 <= int(m.group(1)) <= 18:
+                return m.group(1)
 
         return text.strip()
 
@@ -674,6 +709,19 @@ class ClassAssistant:
             return None
 
         self._store_intake_answer(lead, pending_field, message)
+
+        # Multi-field: scan ALL remaining fields for extractable signals,
+        # skipping ones we can't infer (e.g. prior_experience) and continuing
+        # to the ones after them. This lets "She's 8, weekends, Exploratori"
+        # capture age + availability + group even though prior_experience sits
+        # in between and still needs a direct answer.
+        for field in REQUIRED_INTAKE_FIELDS:
+            if field in lead.get("collected_fields", []):
+                continue
+            extracted = self._try_extract_field(field, message)
+            if extracted is not None:
+                self._store_intake_answer(lead, field, extracted)
+
         next_field = self._next_missing_field(lead)
 
         if next_field is not None:
@@ -1262,10 +1310,20 @@ APPROVED INFORMATION:
             else:
                 reply_text = self._handoff(detect_language(message))
 
+            # Re-prompt: if this phone has an intake still in progress, append
+            # the current question so the parent knows where we left off.
+            lead = self._get_lead(phone)
+            if lead and lead.get("stage") == "intake_in_progress":
+                pending = self._next_missing_field(lead)
+                if pending:
+                    lang = lead.get("lang", "ro")
+                    reply_text = f"{reply_text}\n\n{INTAKE_QUESTIONS[pending][lang]}"
+
         history = self._conversation_history.setdefault(phone, [])
         history.append({"role": "user", "content": message})
         history.append({"role": "assistant", "content": reply_text})
         if len(history) > 20:
             self._conversation_history[phone] = history[-20:]
+        self._save_history()
 
         return reply_text

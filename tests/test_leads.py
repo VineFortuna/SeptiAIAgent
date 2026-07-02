@@ -1,4 +1,4 @@
-from bot import CLOSING_MESSAGE, HANDOFF_VARIANTS
+from bot import CLOSING_MESSAGE, HANDOFF_VARIANTS, INTAKE_QUESTIONS
 
 
 def _all_variants(pool: dict[str, list[str]]) -> list[str]:
@@ -48,7 +48,11 @@ def test_faq_question_mid_intake_does_not_consume_pending_field(bot) -> None:
     reply = bot.reply("Can I speak to a staff member?", phone)
 
     lead = bot.leads[phone]
-    assert reply in _all_variants(HANDOFF_VARIANTS)
+    # Re-prompt is appended after the handoff answer, so check both parts
+    handoff_part = reply.split("\n\n")[0]
+    assert handoff_part in _all_variants(HANDOFF_VARIANTS)
+    assert INTAKE_QUESTIONS["child_language_pref"]["en"] in reply or \
+           INTAKE_QUESTIONS["child_language_pref"]["ro"] in reply
     assert lead["collected_fields"] == []
 
 

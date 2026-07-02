@@ -15,6 +15,13 @@ from bot import ClassAssistant, is_within_business_hours
 load_dotenv()
 
 app = Flask(__name__)
+
+if os.getenv("VALIDATE_TWILIO_SIGNATURE", "false").lower() != "true":
+    import logging
+    logging.getLogger(__name__).warning(
+        "VALIDATE_TWILIO_SIGNATURE is disabled — anyone can send fake messages "
+        "to this webhook. Set it to true before going live."
+    )
 assistant = ClassAssistant()
 
 # Catches up on any off-hours messages a few minutes after 7am Eastern hits,
