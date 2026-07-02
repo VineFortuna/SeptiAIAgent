@@ -316,6 +316,7 @@ EN_WORD_MARKERS: tuple[str, ...] = (
     "interested", "lesson", "want", "the", "you", "your", "can", "what",
     "how", "do", "does", "is", "are", "my", "this", "that", "with", "for",
     "accept", "offer", "need", "have", "much", "many",
+    "when", "i", "class", "time", "book", "booked", "who", "where",
 )
 
 
