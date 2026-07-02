@@ -4,17 +4,30 @@ import os
 from functools import wraps
 from typing import Callable, TypeVar, Any
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 from flask import Flask, Response, abort, jsonify, request
 from twilio.request_validator import RequestValidator
 from twilio.twiml.messaging_response import MessagingResponse
 
-from bot import ClassAssistant
+from bot import ClassAssistant, is_within_business_hours
 
 load_dotenv()
 
 app = Flask(__name__)
 assistant = ClassAssistant()
+
+# Catches up on any off-hours messages a few minutes after 7am Eastern hits,
+# and otherwise just no-ops outside business hours. This file runs with
+# debug=True below, which spawns a second "watcher" copy of this whole module
+# under Flask's auto-reloader - WERKZEUG_RUN_MAIN is only set in the actual
+# serving process, so this avoids starting two schedulers (which could double
+# send a customer's deferred reply).
+scheduler = BackgroundScheduler()
+scheduler.add_job(assistant.process_pending_messages, "interval", minutes=10)
+
+if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    scheduler.start()
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -61,6 +74,8 @@ def health() -> Response:
             "status": "ok",
             "service": "WhatsApp Class Assistant",
             "ai_enabled": assistant.ai_enabled,
+            "business_hours_open": is_within_business_hours(),
+            "pending_messages": sum(len(v) for v in assistant.pending.values()),
         }
     )
 
@@ -71,9 +86,13 @@ def whatsapp_webhook() -> Response:
     message = request.form.get("Body", "").strip()
     sender = request.form.get("From", "").replace("whatsapp:", "").strip()
 
-    reply_text = assistant.reply(message=message, sender_phone=sender)
-
     response = MessagingResponse()
+
+    if not is_within_business_hours():
+        assistant.queue_message(message, sender)
+        return Response(str(response), status=200, mimetype="application/xml")
+
+    reply_text = assistant.reply(message=message, sender_phone=sender)
     response.message(reply_text)
     return Response(str(response), status=200, mimetype="application/xml")
 

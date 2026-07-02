@@ -3,3 +3,5 @@ openai>=2.0,<3
 python-dotenv>=1.0,<2
 twilio>=9.0,<10
 pytest>=8,<10
+APScheduler>=3.10,<4
+tzdata>=2024.1

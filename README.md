@@ -95,6 +95,8 @@ Restart the app after editing `.env`. The OpenAI API is billed separately from a
 
 Without an API key, the bot still covers a lot — greetings, thanks, staff-handoff requests, help, the lead-intake conversation, and most FAQ facts (location, hours, schedule, what to bring/wear, age/experience requirements, group size, cancellation/rescheduling policy, class duration, registration, and booking lookup) in both English and Romanian, all via keyword matching with no AI involved. Pricing, discounts, the lichess.org onboarding steps, and tournament info specifically require the API key, since that content only exists in the AI-routed knowledge base, not as hardcoded rules. Any phrasing that doesn't match a known keyword also falls back to the AI (or the handoff message if no key is set).
 
+**Pricing guardrail:** the AI is only ever given the customer's own currency's pricing (inferred from their phone number's country code) — the other three currencies' rates are stripped out of what it sees entirely, not just told to ignore them. If a customer asks about pricing in a different country/currency, it can't leak real numbers because it was never given them, and it's instructed to say it only quotes in their own currency.
+
 ## 7a. Lead intake and staff notifications
 
 Any WhatsApp number that isn't already in `bookings.json` is treated as a new lead. The bot asks 6 quick qualifying questions (child's class language, time zone, child's age, prior chess experience, weekday/weekend availability, group preference), storing answers in `leads.json` (gitignored — it holds real names/ages/phone numbers, unlike the placeholder `bookings.json`). FAQ questions asked mid-intake (e.g. "how much does it cost?") are still answered — they don't get captured as intake answers.
@@ -110,6 +112,14 @@ STAFF_NOTIFICATION_PHONE=whatsapp:+407XXXXXXXX
 If these aren't set, the bot still works — it just skips sending the notification.
 
 **Note:** WhatsApp's Business API restricts messages a business sends *first* (rather than as a reply) to either an active 24-hour conversation window or a pre-approved message template. If Septi hasn't recently messaged the Twilio number himself, this notification may not deliver until that's set up on the Twilio side — this is a Twilio/WhatsApp policy detail, not something this code can work around.
+
+## 7b. Business hours (7am-9pm Eastern)
+
+The bot only replies live between 7am and 9pm Eastern time (auto-adjusts for EST/EDT — see `is_within_business_hours()` in `bot.py`). A message that arrives outside that window gets queued in `pending_messages.json` (gitignored, holds real message content) and gets **no immediate reply at all**, by design.
+
+A background job (`app.py`, using APScheduler) checks every 10 minutes whether business hours have resumed, and once they have, answers each queued message through the normal `reply()` pipeline and sends it via the Twilio REST API — so a message sent at 11pm gets a real reply once 7am hits, not silence. If a send fails (e.g. Twilio hiccup), the message stays queued and retries on the next check rather than being dropped.
+
+This only applies to the real `/whatsapp` webhook — `chat_demo.py` and `/test-message` ignore business hours entirely, so local testing/development works at any hour.
 
 ## 8. Start the Flask app
 

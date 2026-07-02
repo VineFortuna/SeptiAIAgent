@@ -7,10 +7,28 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
-from notifications import send_staff_notification
+from notifications import send_staff_notification, send_whatsapp_message
 
 BASE_DIR = Path(__file__).resolve().parent
+
+EASTERN_TZ = ZoneInfo("America/New_York")
+BUSINESS_HOURS_START = 7   # 7am Eastern
+BUSINESS_HOURS_END = 21    # 9pm Eastern
+
+
+def is_within_business_hours(now: datetime | None = None) -> bool:
+    """7am-9pm, Eastern time (auto-adjusts for EST/EDT).
+
+    DISABLE_BUSINESS_HOURS=true bypasses this entirely, for local demos/testing
+    outside the real schedule without changing production behavior.
+    """
+    if os.getenv("DISABLE_BUSINESS_HOURS", "false").lower() == "true":
+        return True
+
+    current = (now or datetime.now(EASTERN_TZ)).astimezone(EASTERN_TZ)
+    return BUSINESS_HOURS_START <= current.hour < BUSINESS_HOURS_END
 
 # Longest-prefix match against E.164 calling codes -> which pricing bucket to quote.
 # Starter list based on where the Sep7Ro diaspora audience is known to live; easy to
@@ -81,12 +99,12 @@ INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
 
 GREETING_INTRO: dict[str, list[str]] = {
     "en": [
-        "Hey, Septi here from Sep7Ro! Quick one before we line up a demo:",
+        "Hey, Septi here from Sep7Ro! 🙂 Quick one before we line up a demo:",
         "Hi! Septi from Sep7Ro, just need 2 quick things from you:",
         "Hey, it's Septi 🙂 Got a sec for 2 quick questions?",
     ],
     "ro": [
-        "Hey, Septi aici de la Sep7Ro! Ceva rapid înainte de demo:",
+        "Hey, Septi aici de la Sep7Ro! 🙂 Ceva rapid înainte de demo:",
         "Salut! Septi de la Sep7Ro, am nevoie de 2 lucruri rapide:",
         "Hey, sunt Septi 🙂 Ai un minut pentru 2 întrebări?",
     ],
@@ -94,72 +112,72 @@ GREETING_INTRO: dict[str, list[str]] = {
 
 CLOSING_MESSAGE: dict[str, list[str]] = {
     "en": [
-        "Perfect, got it! I'll line up some demo times and come back to you",
+        "Perfect, got it! 🙂 I'll line up some demo times and come back to you",
         "Awesome, thank you. Give me a bit, I'll follow up with some times",
-        "Got it, thanks! Lining up a couple of demo slots now",
+        "Got it, thanks! 👍 Lining up a couple of demo slots now",
     ],
     "ro": [
-        "Perfect, am notat! Îți trimit niște variante de oră în scurt timp",
+        "Perfect, am notat! 🙂 Îți trimit niște variante de oră în scurt timp",
         "Super, mulțumesc. Revin cu câteva variante pentru demo",
-        "Am notat, mersi! Pregătesc câteva ore pentru demo",
+        "Am notat, mersi! 👍 Pregătesc câteva ore pentru demo",
     ],
 }
 
 GREETING_REPLY: dict[str, list[str]] = {
     "en": [
-        "Hey! What's up?",
+        "Hey! 🙂 What's up?",
         "Hi! Septi here, how can I help?",
-        "Hey there, what can I do for you?",
+        "Hey there 😊 what can I do for you?",
         "Heyy 🙂",
     ],
     "ro": [
-        "Hey! Ce pot face pentru tine?",
+        "Hey! 🙂 Ce pot face pentru tine?",
         "Salut! Septi aici, cu ce te ajut?",
-        "Hey, ce e?",
+        "Hey, ce e? 😊",
         "Salut 🙂",
     ],
 }
 
 THANKS_REPLY: dict[str, list[str]] = {
     "en": [
-        "Anytime!",
+        "Anytime! 🙂",
         "No worries at all 🙂",
-        "Glad to help, shout if anything else comes up",
+        "Glad to help, shout if anything else comes up 😊",
         "Of course!",
     ],
     "ro": [
-        "Cu plăcere!",
+        "Cu plăcere! 🙂",
         "Sigur, oricând 🙂",
-        "Mă bucur că ajut, dau un semn dacă mai e nevoie",
+        "Mă bucur că ajut, dau un semn dacă mai e nevoie 😊",
         "Clar!",
     ],
 }
 
 HELP_REPLY: dict[str, list[str]] = {
     "en": [
-        "Classes, pricing, booking a demo, your next lesson, ask away. Anything trickier and I'll personally dig into it",
+        "Classes, pricing, booking a demo, your next lesson, ask away 🙂 Anything trickier and I'll personally dig into it",
         "Ask me anything, classes, pricing, demo booking. If it's something I need to check I'll follow up with you",
-        "Pricing, classes, scheduling a demo, whatever you need, just ask",
+        "Pricing, classes, scheduling a demo, whatever you need, just ask 😊",
     ],
     "ro": [
-        "Clase, prețuri, programare demo, lecția ta, întreabă liber. Dacă e ceva mai complicat, verific personal",
+        "Clase, prețuri, programare demo, lecția ta, întreabă liber 🙂 Dacă e ceva mai complicat, verific personal",
         "Întreabă orice, clase, prețuri, demo. Dacă e ceva ce trebuie verificat, revin eu",
-        "Prețuri, clase, programare demo, orice ai nevoie, întreabă",
+        "Prețuri, clase, programare demo, orice ai nevoie, întreabă 😊",
     ],
 }
 
 HANDOFF_VARIANTS: dict[str, list[str]] = {
     "en": [
-        "Hmm good question, lemme check and get back to you",
+        "Hmm good question, lemme check and get back to you 🙂",
         "Not sure off the top of my head, give me a sec",
-        "Let me dig into that one and I'll let you know",
+        "Let me dig into that one and I'll let you know 👍",
         "Don't know that off hand, checking now",
         "Good one, I'll find out and circle back to you 🙂",
     ],
     "ro": [
-        "Hmm bună întrebare, las-mă să verific și-ți spun",
+        "Hmm bună întrebare, las-mă să verific și-ți spun 🙂",
         "Nu știu pe loc, îmi dai un minut",
-        "Las-mă să mă interesez și revin",
+        "Las-mă să mă interesez și revin 👍",
         "Nu sunt sigur acum, verific și revin",
         "Bună întrebare, dau de capăt și-ți spun 🙂",
     ],
@@ -167,37 +185,37 @@ HANDOFF_VARIANTS: dict[str, list[str]] = {
 
 REGISTRATION_FALLBACK: dict[str, list[str]] = {
     "en": [
-        "I'll sort you out myself, give me a bit and I'll come back with the details",
+        "I'll sort you out myself, give me a bit and I'll come back with the details 🙂",
         "Let me handle that for you, I'll follow up shortly",
-        "I'll take care of that, just give me a moment",
+        "I'll take care of that, just give me a moment 👍",
     ],
     "ro": [
-        "Te înscriu eu, îmi dai un moment și revin cu detaliile",
+        "Te înscriu eu, îmi dai un moment și revin cu detaliile 🙂",
         "Mă ocup eu de asta, revin în scurt timp",
-        "Las-mă să rezolv eu asta, revin imediat",
+        "Las-mă să rezolv eu asta, revin imediat 👍",
     ],
 }
 
 REGISTRATION_LINK_REPLY: dict[str, list[str]] = {
     "en": [
-        "Yes! You can sign up right here: {link}",
+        "Yes! You can sign up right here: {link} 🙂",
         "Sure thing, here's the link: {link}",
-        "Here you go: {link}",
+        "Here you go: {link} 👍",
     ],
     "ro": [
-        "Da, sigur! Te poți înscrie aici: {link}",
+        "Da, sigur! Te poți înscrie aici: {link} 🙂",
         "Clar, aici e linkul: {link}",
-        "Poftim: {link}",
+        "Poftim: {link} 👍",
     ],
 }
 
 BOOKING_FOUND: dict[str, list[str]] = {
     "en": [
-        "Your next {class_name} is on {date} at {time}",
+        "Your next {class_name} is on {date} at {time} 🙂",
         "You're booked for {class_name} on {date} at {time}",
     ],
     "ro": [
-        "Următoarea ta lecție, {class_name}, e pe {date} la ora {time}",
+        "Următoarea ta lecție, {class_name}, e pe {date} la ora {time} 🙂",
         "Ești programat la {class_name} pe {date}, ora {time}",
     ],
 }
@@ -206,12 +224,12 @@ BOOKING_NOT_FOUND: dict[str, list[str]] = {
     "en": [
         "Hmm, not seeing a booking on this number, what name did you book under?",
         "Can't match this number to a booking, send me the name you used and I'll find it",
-        "Don't see anything under this number, what name should I look for?",
+        "Don't see anything under this number 🤔 what name should I look for?",
     ],
     "ro": [
         "Hmm, nu găsesc o rezervare pe acest număr, ce nume ai folosit?",
         "Nu văd nimic pe numărul ăsta, trimite-mi numele de pe rezervare",
-        "Nu apare nimic pe acest număr, ce nume să caut?",
+        "Nu apare nimic pe acest număr 🤔 ce nume să caut?",
     ],
 }
 
@@ -222,27 +240,27 @@ CURRENCY_DEFAULT_NOTE = {
 
 GROUP_LISTING_SINGLE: dict[str, list[str]] = {
     "en": [
-        "Right now I've got {joined} running",
+        "Right now I've got {joined} running 🙂",
         "Just {joined} active at the moment",
-        "{joined} is the one running right now",
+        "{joined} is the one running right now 👍",
     ],
     "ro": [
-        "Acum am grupa {joined} activă",
+        "Acum am grupa {joined} activă 🙂",
         "Momentan doar grupa {joined} e activă",
-        "Grupa {joined} e cea activă acum",
+        "Grupa {joined} e cea activă acum 👍",
     ],
 }
 
 GROUP_LISTING_MULTI: dict[str, list[str]] = {
     "en": [
-        "Right now I've got {joined} running",
+        "Right now I've got {joined} running 🙂",
         "I've got {joined} going at the moment",
-        "{joined} are both active right now",
+        "{joined} are both active right now 👍",
     ],
     "ro": [
-        "Acum am grupele {joined} active",
+        "Acum am grupele {joined} active 🙂",
         "Momentan am grupele {joined} active",
-        "Grupele {joined} sunt active acum",
+        "Grupele {joined} sunt active acum 👍",
     ],
 }
 
@@ -312,6 +330,8 @@ class ClassAssistant:
         self,
         leads_path: Path | None = None,
         notifier: Callable[[str], bool] | None = None,
+        pending_path: Path | None = None,
+        customer_notifier: Callable[[str, str], bool] | None = None,
     ) -> None:
         self.company_data = self._load_json("company_data.json")
         self.bookings = self._load_json("bookings.json")
@@ -320,6 +340,10 @@ class ClassAssistant:
         self.leads = self._load_leads(self.leads_path)
         self.notifier = notifier or send_staff_notification
         self._last_pick: dict[Any, str] = {}
+
+        self.pending_path = pending_path or (BASE_DIR / "pending_messages.json")
+        self.pending: dict[str, list[dict[str, str]]] = self._load_leads(self.pending_path)
+        self.customer_notifier = customer_notifier or send_whatsapp_message
 
         self.api_key = os.getenv("OPENAI_API_KEY", "").strip()
         self.model = os.getenv("OPENAI_MODEL", "gpt-5.5").strip()
@@ -352,6 +376,43 @@ class ClassAssistant:
     def _save_leads(self) -> None:
         with self.leads_path.open("w", encoding="utf-8") as file:
             json.dump(self.leads, file, ensure_ascii=False, indent=2)
+
+    def _save_pending(self) -> None:
+        with self.pending_path.open("w", encoding="utf-8") as file:
+            json.dump(self.pending, file, ensure_ascii=False, indent=2)
+
+    def queue_message(self, message: str, sender_phone: str) -> None:
+        """Store an off-hours message to be answered once business hours resume."""
+        phone = self._normalize_phone(sender_phone)
+        entry = {
+            "message": message,
+            "sender_phone": sender_phone,
+            "received_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self.pending.setdefault(phone, []).append(entry)
+        self._save_pending()
+
+    def process_pending_messages(self) -> None:
+        """Answer queued off-hours messages, but only once business hours are open."""
+        if not is_within_business_hours():
+            return
+
+        for phone, queued in list(self.pending.items()):
+            remaining = []
+
+            for entry in queued:
+                reply_text = self.reply(entry["message"], entry["sender_phone"])
+                sent = self.customer_notifier(entry["sender_phone"], reply_text)
+
+                if not sent:
+                    remaining.append(entry)
+
+            if remaining:
+                self.pending[phone] = remaining
+            else:
+                del self.pending[phone]
+
+        self._save_pending()
 
     @staticmethod
     def _normalize_phone(phone: str) -> str:
@@ -1054,23 +1115,38 @@ class ClassAssistant:
         assert self.client is not None
 
         lang = detect_language(message)
+        currency_bucket, country_code = infer_currency_bucket(sender_phone)
+
+        # Guardrail: only ever include this customer's own currency in the
+        # data we hand to the model, so other regions' pricing can't leak,
+        # by mistake or otherwise.
+        approved_data = dict(self.company_data)
+        pricing = approved_data.get("pricing")
+
+        if isinstance(pricing, dict) and isinstance(pricing.get("rates"), dict):
+            approved_data["pricing"] = {
+                **pricing,
+                "rates": {currency_bucket: pricing["rates"].get(currency_bucket, {})},
+            }
 
         approved_information = json.dumps(
-            self.company_data,
+            approved_data,
             ensure_ascii=False,
             indent=2,
         )
 
-        currency_bucket, country_code = infer_currency_bucket(sender_phone)
         currency_note = (
-            f"This customer's currency is {currency_bucket}; "
-            f"when discussing pricing, quote only that currency's rates from "
-            f"the pricing section."
+            f"This customer's currency is {currency_bucket}. Only that "
+            f"currency's pricing is included below, on purpose, other "
+            f"currencies have been removed. If asked about pricing in another "
+            f"currency or country, say you only quote prices in "
+            f"{currency_bucket} for them and never guess a conversion."
             if country_code
             else (
-                f"This customer's country could not be determined from their "
-                f"phone number; default to {currency_bucket} pricing and mention "
-                f"that you're defaulting to it."
+                f"This customer's country couldn't be determined from their "
+                f"phone number, so only {currency_bucket} pricing is included "
+                f"below, on purpose. Default to it and mention you're "
+                f"defaulting to it."
             )
         )
 
@@ -1091,8 +1167,8 @@ Sound like a real person texting, not a corporate bot:
 - Vary your sentence length and structure every time, don't fall into a
   template like "Good question, let me X and come back to you". Sometimes
   one short line is enough.
-- Use emoji rarely, most messages should have none at all. Never put one on
-  every single message, that's a dead giveaway.
+- Use an emoji every couple of messages or so, not in every single one and
+  not in zero either, just don't go overboard with them.
 - Contractions are good (lemme, that'll, don't, I'll), but don't overdo slang.
 - Don't re-introduce yourself ("it's Septi from Sep7Ro") if you've clearly
   already been talking to this person in this conversation.
@@ -1105,6 +1181,9 @@ Rules:
 - Never invent prices, times, policies, locations, availability, or bookings.
 - Treat values containing the word REPLACE as missing information.
 - {currency_note}
+- Never share any other family's, child's, or lead's personal information.
+  You don't have access to anyone else's records, only this approved
+  business information.
 - Do not claim that a customer has successfully registered.
 - Give the registration link when asked about registration.
 - For unclear questions, refunds, complaints, emergencies, or requests
