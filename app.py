@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+import time
 from functools import wraps
+from threading import Thread
 from typing import Callable, TypeVar, Any
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -11,6 +13,7 @@ from twilio.request_validator import RequestValidator
 from twilio.twiml.messaging_response import MessagingResponse
 
 from bot import ClassAssistant, is_within_business_hours
+from notifications import send_whatsapp_message
 
 load_dotenv()
 
@@ -99,10 +102,16 @@ def whatsapp_webhook() -> Response:
     # Voice notes, images, stickers — reply immediately regardless of business hours
     # since queuing an empty message and replying to it later is broken behavior.
     if not message and num_media > 0:
-        response.message(
+        sender_wa = f"whatsapp:{sender}"
+        media_text = (
             "I can only read text messages right now — feel free to type your question 🙂\n\n"
             "Nu pot citi mesaje vocale sau imagini deocamdată — scrie-mi întrebarea 🙂"
         )
+        Thread(
+            target=send_whatsapp_message,
+            args=(sender_wa, media_text),
+            daemon=True,
+        ).start()
         return Response(str(response), status=200, mimetype="application/xml")
 
     # Blank text with no media (accidental send) — silently no-op rather than
@@ -114,8 +123,17 @@ def whatsapp_webhook() -> Response:
         assistant.queue_message(message, sender)
         return Response(str(response), status=200, mimetype="application/xml")
 
-    reply_text = assistant.reply(message=message, sender_phone=sender)
-    response.message(reply_text)
+    reply_parts = assistant.reply(message=message, sender_phone=sender)
+    sender_wa = f"whatsapp:{sender}"
+
+    def _send_all(parts: list[str], to: str) -> None:
+        for i, part in enumerate(parts):
+            time.sleep(1.2 if i == 0 else 2.5)
+            send_whatsapp_message(to, part)
+
+    Thread(target=_send_all, args=(reply_parts, sender_wa), daemon=True).start()
+
+    # Return empty TwiML immediately so Twilio doesn't wait on us.
     return Response(str(response), status=200, mimetype="application/xml")
 
 
@@ -129,7 +147,8 @@ def test_message() -> Response:
     if not message:
         return jsonify({"error": "The 'message' field is required."}), 400
 
-    return jsonify({"reply": assistant.reply(message=message, sender_phone=phone)})
+    parts = assistant.reply(message=message, sender_phone=phone)
+    return jsonify({"reply": "\n\n".join(parts)})
 
 
 if __name__ == "__main__":

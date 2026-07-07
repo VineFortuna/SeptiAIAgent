@@ -5,15 +5,38 @@ def _all_variants(pool: dict[str, list[str]]) -> list[str]:
     return [variant for variants in pool.values() for variant in variants]
 
 
-def test_new_lead_gets_first_intake_question(bot) -> None:
-    reply = bot.reply("Hi, interested in chess lessons", "+40712345678")
-    assert reply.strip().endswith("?")
+def test_new_lead_gets_greeting_then_country_question(bot) -> None:
+    phone = "+40712345678"
+    first_reply = bot.reply("Hi, interested in chess lessons", phone)
+    # First message always returns just the greeting
+    assert first_reply[-1].strip().endswith("?")
+    assert "country" not in first_reply[-1].lower() and "tara" not in first_reply[-1].lower()
+    # Second message should ask country
+    second_reply = bot.reply("tell me more", phone)
+    assert second_reply[-1].strip().endswith("?")
+
+
+def test_pure_greeting_creates_greeted_lead(bot) -> None:
+    phone = "+40712345678"
+    bot.reply("Hi", phone)
+    # Lead created in "greeted" stage — intake has not started yet
+    assert bot.leads[phone]["stage"] == "greeted"
+    assert bot.leads[phone]["collected_fields"] == []
+
+
+def test_intake_starts_on_second_message(bot) -> None:
+    phone = "+40712345678"
+    bot.reply("Hi", phone)                       # greeting → "greeted" stage
+    bot.reply("interested in chess", phone)      # second msg → "intake_in_progress"
+    assert bot.leads[phone]["stage"] == "intake_in_progress"
 
 
 def test_intake_field_is_persisted(bot) -> None:
     phone = "+40712345678"
-    bot.reply("Hi", phone)  # creates the lead, asks question 1
-    bot.reply("Romanian", phone)  # answers question 1
+    bot.reply("Hi", phone)
+    bot.reply("interested in chess", phone)  # "greeted" → asks country
+    bot.reply("Romania", phone)             # stores country, asks child_language_pref
+    bot.reply("Romanian", phone)            # stores child_language_pref = "ro"
 
     lead = bot.leads[phone]
     assert lead["child_language_pref"] == "ro"
@@ -23,7 +46,8 @@ def test_intake_field_is_persisted(bot) -> None:
 def test_intake_completes_and_marks_handed_off(bot) -> None:
     phone = "+40712345678"
     bot.reply("Hi", phone)
-    bot.reply("Romanian", phone)
+    bot.reply("interested in chess", phone)  # "greeted" → asks country
+    bot.reply("Romanian", phone)             # country + child_language_pref (multi-field)
     bot.reply("GMT+2", phone)
     bot.reply("7 years old", phone)
     bot.reply("No, never played", phone)
@@ -33,7 +57,7 @@ def test_intake_completes_and_marks_handed_off(bot) -> None:
     lead = bot.leads[phone]
     assert lead["stage"] == "faq_only"
     assert lead["handed_off"] is True
-    assert final_reply in _all_variants(CLOSING_MESSAGE)
+    assert final_reply[0] in _all_variants(CLOSING_MESSAGE)
 
 
 def test_known_booking_skips_intake(bot) -> None:
@@ -42,23 +66,37 @@ def test_known_booking_skips_intake(bot) -> None:
     assert phone not in bot.leads
 
 
+def test_greeting_mid_intake_repeats_pending_question(bot) -> None:
+    phone = "+40712345678"
+    bot.reply("Hi", phone)
+    bot.reply("interested in chess", phone)  # asks country
+    # Saying hello mid-intake should warmly re-ask the country question in one message
+    reply = bot.reply("Hello", phone)
+    assert any(INTAKE_QUESTIONS["country"]["en"] in r or INTAKE_QUESTIONS["country"]["ro"] in r for r in reply)
+
+
 def test_faq_question_mid_intake_does_not_consume_pending_field(bot) -> None:
     phone = "+40712345678"
-    bot.reply("Hi", phone)  # pending field: child_language_pref
+    bot.reply("Hi", phone)
+    bot.reply("interested in chess", phone)  # asks country
+    bot.reply("Romania", phone)              # stores country, pending: child_language_pref
     reply = bot.reply("Can I speak to a staff member?", phone)
 
     lead = bot.leads[phone]
-    # Re-prompt is appended after the handoff answer, so check both parts
-    handoff_part = reply.split("\n\n")[0]
+    # Re-prompt is appended after the handoff answer
+    handoff_part = reply[0].split("\n\n")[0]
     assert handoff_part in _all_variants(HANDOFF_VARIANTS)
-    assert INTAKE_QUESTIONS["child_language_pref"]["en"] in reply or \
-           INTAKE_QUESTIONS["child_language_pref"]["ro"] in reply
-    assert lead["collected_fields"] == []
+    assert any(
+        INTAKE_QUESTIONS["child_language_pref"]["en"] in r or INTAKE_QUESTIONS["child_language_pref"]["ro"] in r
+        for r in reply
+    )
+    assert "child_language_pref" not in lead["collected_fields"]
 
 
 def test_empty_message_during_intake_does_not_crash_or_lose_progress(bot) -> None:
     phone = "+40712345678"
-    bot.reply("Hi", phone)  # pending field: child_language_pref
+    bot.reply("Hi", phone)
+    bot.reply("interested in chess", phone)  # asks country
     reply = bot.reply("   ", phone)
 
     lead = bot.leads[phone]
@@ -68,34 +106,35 @@ def test_empty_message_during_intake_does_not_crash_or_lose_progress(bot) -> Non
 
 def test_gibberish_answer_is_stored_verbatim_and_advances_intake(bot) -> None:
     phone = "+40712345678"
-    bot.reply("Hi", phone)  # pending field: child_language_pref
-    bot.reply("asdkjfh qwerty zzz", phone)
+    bot.reply("Hi", phone)
+    bot.reply("interested in chess", phone)  # asks country
+    bot.reply("asdkjfh qwerty zzz", phone)   # stored as country verbatim
 
     lead = bot.leads[phone]
-    assert lead["child_language_pref"] == "asdkjfh qwerty zzz"
-    assert "child_language_pref" in lead["collected_fields"]
+    assert lead["country"] == "asdkjfh qwerty zzz"
+    assert "country" in lead["collected_fields"]
 
 
 def test_lead_resumes_intake_after_gap_without_restarting(bot) -> None:
     phone = "+40712345678"
     bot.reply("Hi", phone)
-    bot.reply("Romanian", phone)
-    bot.reply("GMT+2", phone)
+    bot.reply("interested in chess", phone)  # asks country
+    bot.reply("Romanian", phone)             # country + child_language_pref (multi-field)
+    bot.reply("GMT+2", phone)               # timezone
 
     fields_before = list(bot.leads[phone]["collected_fields"])
 
-    # Simulate a long gap (e.g. the lead goes quiet for days) - nothing in the
-    # code depends on elapsed time, so the next message should just continue
-    # from the same pending field, not restart the intake.
+    # Simulate a long gap — the next message should continue from the same pending field
     reply = bot.reply("7 years old", phone)
 
-    assert reply.strip().endswith("?")
+    assert reply[-1].strip().endswith("?")
     assert bot.leads[phone]["collected_fields"] == [*fields_before, "child_age"]
 
 
 def test_handed_off_lead_does_not_restart_intake_later(bot) -> None:
     phone = "+40712345678"
     bot.reply("Hi", phone)
+    bot.reply("interested in chess", phone)
     bot.reply("Romanian", phone)
     bot.reply("GMT+2", phone)
     bot.reply("7 years old", phone)
@@ -103,9 +142,8 @@ def test_handed_off_lead_does_not_restart_intake_later(bot) -> None:
     bot.reply("Weekday evenings", phone)
     bot.reply("Exploratori", phone)
 
-    # Lead is now handed off. A message much later should be treated as a
-    # normal FAQ question, not restart the intake questionnaire.
+    # Lead is now handed off. A later message should be a normal FAQ, not restart intake.
     reply = bot.reply("Can I speak to a staff member?", phone)
 
-    assert reply in _all_variants(HANDOFF_VARIANTS)
+    assert reply[0] in _all_variants(HANDOFF_VARIANTS)
     assert bot.leads[phone]["stage"] == "faq_only"

@@ -51,6 +51,7 @@ def test_intake_completion_triggers_injected_notifier(bot) -> None:
 
     phone = "+40712345678"
     bot.reply("Hi", phone)
+    bot.reply("I'm interested in chess classes", phone)  # triggers enrollment intent
     bot.reply("Romanian", phone)
     bot.reply("GMT+2", phone)
     bot.reply("7 years old", phone)

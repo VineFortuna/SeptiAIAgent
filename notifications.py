@@ -23,10 +23,12 @@ def send_whatsapp_message(to: str, body: str, *, client: Any = None) -> bool:
 
             client = Client(account_sid, auth_token)
 
-        client.messages.create(from_=from_number, to=to, body=body)
+        msg = client.messages.create(from_=from_number, to=to, body=body)
+        print(f"[TWILIO] Sent to {to} | SID: {msg.sid}")
         return True
 
-    except Exception:
+    except Exception as exc:
+        print(f"[TWILIO ERROR] Failed to send to {to}: {exc}")
         return False
 
 

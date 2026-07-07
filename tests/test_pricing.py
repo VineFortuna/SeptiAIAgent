@@ -36,6 +36,8 @@ def test_pricing_question_mentions_currency_for_uk_number(bot) -> None:
         return
 
     phone = "+447911123456"
-    bot.reply("Hi", phone)  # first message always starts intake
+    bot.reply("Hi", phone)
+    bot.reply("interested in chess", phone)  # creates lead, asks country
+    bot.reply("UK", phone)                   # sets currency to GBP
     reply = bot.reply("How much does the standard package cost?", phone)
-    assert "£" in reply or "GBP" in reply
+    assert "£" in reply[0] or "GBP" in reply[0]

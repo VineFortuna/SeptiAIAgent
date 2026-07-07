@@ -91,6 +91,7 @@ CONSTRAINED_FIELD_VALUES: dict[str, frozenset[str]] = {
 }
 
 REQUIRED_INTAKE_FIELDS: tuple[str, ...] = (
+    "country",
     "child_language_pref",
     "timezone",
     "child_age",
@@ -100,6 +101,10 @@ REQUIRED_INTAKE_FIELDS: tuple[str, ...] = (
 )
 
 INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
+    "country": {
+        "en": "What country are you in?",
+        "ro": "Din ce țară ești?",
+    },
     "child_language_pref": {
         "en": "Does your child speak Romanian or English for class?",
         "ro": "Copilul vorbește română sau engleză pentru clasă?",
@@ -128,42 +133,85 @@ INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
 
 GREETING_INTRO: dict[str, list[str]] = {
     "en": [
-        "Hey, Septi here from Sep7Ro! 🙂 Quick one before we line up a demo:",
-        "Hi! Septi from Sep7Ro, just need 2 quick things from you:",
-        "Hey, it's Septi 🙂 Got a sec for 2 quick questions?",
+        "Hey! I'm Septi's assistant at Sep7Ro 🙂 How can I help you?",
+        "Hi there! I'm the assistant here at Sep7Ro — how can I help?",
+        "Hey, I'm Septi's assistant from Sep7Ro! What can I do for you?",
     ],
     "ro": [
-        "Hey, Septi aici de la Sep7Ro! 🙂 Ceva rapid înainte de demo:",
-        "Salut! Septi de la Sep7Ro, am nevoie de 2 lucruri rapide:",
-        "Hey, sunt Septi 🙂 Ai un minut pentru 2 întrebări?",
+        "Bună! Sunt asistenta lui Septi la Sep7Ro 🙂 Cu ce te pot ajuta?",
+        "Salut! Sunt asistenta de la Sep7Ro — cu ce te ajut?",
+        "Hey, sunt asistenta lui Septi de la Sep7Ro! Cu ce pot ajuta?",
     ],
 }
 
 CLOSING_MESSAGE: dict[str, list[str]] = {
     "en": [
-        "Perfect, got it! 🙂 I'll line up some demo times and come back to you",
-        "Awesome, thank you. Give me a bit, I'll follow up with some times",
-        "Got it, thanks! 👍 Lining up a couple of demo slots now",
+        "Perfect, got everything I need! 🙂 Septi will reach out to you soon with some available class times",
+        "Awesome, thank you! Septi will follow up with you directly with some demo slots",
+        "Got it, thanks! 👍 Septi will get in touch soon with available times for your child",
     ],
     "ro": [
-        "Perfect, am notat! 🙂 Îți trimit niște variante de oră în scurt timp",
-        "Super, mulțumesc. Revin cu câteva variante pentru demo",
-        "Am notat, mersi! 👍 Pregătesc câteva ore pentru demo",
+        "Perfect, am notat tot! 🙂 Septi te va contacta în curând cu niște variante de oră",
+        "Super, mulțumesc! Septi îți va scrie direct cu câteva variante pentru demo",
+        "Am notat, mersi! 👍 Septi te contactează în curând cu orele disponibile",
     ],
 }
 
 GREETING_REPLY: dict[str, list[str]] = {
     "en": [
         "Hey! 🙂 What's up?",
-        "Hi! Septi here, how can I help?",
+        "Hi! How can I help?",
         "Hey there 😊 what can I do for you?",
         "Heyy 🙂",
     ],
     "ro": [
         "Hey! 🙂 Ce pot face pentru tine?",
-        "Salut! Septi aici, cu ce te ajut?",
+        "Salut! Cu ce te ajut?",
         "Hey, ce e? 😊",
         "Salut 🙂",
+    ],
+}
+
+UNCLEAR_INPUT: dict[str, list[str]] = {
+    "en": [
+        "Sorry, didn't quite get that 😊 What did you want to know?",
+        "Hmm, didn't catch that — what can I help you with?",
+        "Not sure I followed — feel free to ask anything 🙂",
+    ],
+    "ro": [
+        "Hmm, nu am înțeles bine 😊 Cu ce te pot ajuta?",
+        "Nu am prins — spune-mi cu ce pot ajuta 🙂",
+        "Nu prea am înțeles — ce ai vrea să știi?",
+    ],
+}
+
+INTAKE_TRANSITION: dict[str, list[str]] = {
+    "en": [
+        "Happy to help! What country are you in?",
+        "Of course! Before I get into that, what country are you based in?",
+        "Sure thing! Just one quick question — what country are you in?",
+    ],
+    "ro": [
+        "Cu plăcere! Din ce țară ești?",
+        "Sigur! Înainte să îți răspund, din ce țară ești?",
+        "Clar! O singură întrebare rapidă — din ce țară ești?",
+    ],
+}
+
+INTAKE_ACK: dict[str, list[str]] = {
+    "en": [
+        "Got it!",
+        "Nice!",
+        "Perfect!",
+        "Great, thanks!",
+        "Awesome!",
+    ],
+    "ro": [
+        "Am înțeles!",
+        "Super!",
+        "Perfect!",
+        "Bine, mulțumesc!",
+        "Excelent!",
     ],
 }
 
@@ -342,6 +390,8 @@ EN_WORD_MARKERS: tuple[str, ...] = (
     "how", "do", "does", "is", "are", "my", "this", "that", "with", "for",
     "accept", "offer", "need", "have", "much", "many",
     "when", "i", "class", "time", "book", "booked", "who", "where",
+    "like", "would", "love", "just", "also", "know", "about", "could",
+    "should", "get", "it", "sign", "up", "id", "let", "tell", "more",
 )
 
 
@@ -424,6 +474,37 @@ class ClassAssistant:
         with self.history_path.open("w", encoding="utf-8") as file:
             json.dump(self._conversation_history, file, ensure_ascii=False, indent=2)
 
+    @staticmethod
+    def _infer_currency_from_country(country_text: str) -> str | None:
+        """Map a free-text country answer to a pricing bucket, or None if unknown."""
+        lowered = country_text.lower()
+        if any(w in lowered for w in ("romania", "românia", "roman")):
+            return "RON"
+        if any(w in lowered for w in ("moldova", "moldov")):
+            return "RON"
+        if any(w in lowered for w in ("uk", "united kingdom", "england", "britain", "scotland", "wales")):
+            return "GBP"
+        if any(w in lowered for w in ("canada", "canadian")):
+            return "CAD"
+        if any(w in lowered for w in ("usa", "united states", "america")):
+            return "USD"
+        euro_countries = (
+            "germany", "german", "deutschland",
+            "france", "french", "franța", "franta",
+            "italy", "italian", "italia",
+            "spain", "spanish", "spania",
+            "netherlands", "dutch", "olanda",
+            "belgium", "belgian", "belgia",
+            "austria", "österreich",
+            "portugal", "portuguese", "portugalia",
+            "ireland", "irish", "irlanda",
+            "greece", "greek", "grecia",
+            "luxembourg", "luxemburg",
+        )
+        if any(w in lowered for w in euro_countries):
+            return "EUR"
+        return None
+
     def _try_extract_field(self, field: str, message: str) -> str | None:
         """Try to pull an answer for `field` from a message without explicitly asking.
 
@@ -462,10 +543,12 @@ class ClassAssistant:
             remaining = []
 
             for entry in queued:
-                if "reply_text" not in entry:
-                    entry["reply_text"] = self.reply(entry["message"], entry["sender_phone"])
-                sent = self.customer_notifier(entry["sender_phone"], entry["reply_text"])
-
+                if "reply_parts" not in entry:
+                    entry["reply_parts"] = self.reply(entry["message"], entry["sender_phone"])
+                sent = all(
+                    self.customer_notifier(entry["sender_phone"], part)
+                    for part in entry["reply_parts"]
+                )
                 if not sent:
                     remaining.append(entry)
 
@@ -589,12 +672,12 @@ class ClassAssistant:
     def _get_lead(self, phone: str) -> dict[str, Any] | None:
         return self.leads.get(phone)
 
-    def _create_lead(self, phone: str, lang: str) -> dict[str, Any]:
+    def _create_lead(self, phone: str, lang: str, initial_stage: str = "intake_in_progress") -> dict[str, Any]:
         currency_bucket, country_code = infer_currency_bucket(phone)
         now = datetime.now(timezone.utc).isoformat()
 
         lead = {
-            "stage": "intake_in_progress",
+            "stage": initial_stage,
             "lang": lang,
             "currency_bucket": currency_bucket,
             "country_calling_code": country_code,
@@ -654,25 +737,80 @@ class ClassAssistant:
         lead["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     def _maybe_notify_staff(self, phone: str, lead: dict[str, Any]) -> None:
-        lang = lead.get("lang", "ro")
-        labels = {
-            "child_language_pref": ("Child's class language", "Limba clasei pentru copil"),
-            "timezone": ("Time zone", "Fus orar"),
-            "child_age": ("Child's age", "Vârsta copilului"),
-            "prior_experience": ("Prior chess experience", "Experiență anterioară la șah"),
-            "availability_pref": ("Availability", "Disponibilitate"),
-            "group_pref": ("Group preference", "Preferință grupă"),
-        }
-        header = "New chess lead" if lang == "en" else "Lead nou la sah"
-        lines = [f"{header}: {phone}", f"Currency: {lead.get('currency_bucket')}"]
+        lang_pref = lead.get("child_language_pref", "")
+        lang_display = "English" if lang_pref == "en" else ("Romanian" if lang_pref == "ro" else lang_pref or "-")
 
-        for field in REQUIRED_INTAKE_FIELDS:
-            label = labels[field][0 if lang == "en" else 1]
-            lines.append(f"{label}: {lead.get(field) or '-'}")
+        lines = [
+            "New lead ready for follow-up 👋",
+            f"WhatsApp: {phone}",
+            "",
+            f"Country: {lead.get('country') or '-'}",
+            f"Class language: {lang_display}",
+            f"Time zone: {lead.get('timezone') or '-'}",
+            f"Child's age: {lead.get('child_age') or '-'}",
+            f"Chess experience: {lead.get('prior_experience') or '-'}",
+            f"Availability: {lead.get('availability_pref') or '-'}",
+            f"Group preference: {lead.get('group_pref') or '-'}",
+        ]
 
         self.notifier("\n".join(lines))
 
-    def _handle_lead_intake(self, message: str, phone: str) -> str | None:
+    _GREETING_WORDS: frozenset[str] = frozenset({
+        "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
+        "salut", "buna", "bună", "buna ziua", "bună ziua", "servus",
+    })
+
+    # Sentences ending with these words are clearly cut off mid-thought.
+    _INCOMPLETE_ENDINGS: frozenset[str] = frozenset({
+        "i", "to", "for", "the", "a", "an", "and", "or", "but", "in", "at",
+        "of", "on", "with", "by", "from", "about", "that", "my", "your", "is",
+        "are", "was", "would", "like", "want", "need", "just", "also", "ca",
+        "să", "și", "că", "cu", "de", "la", "pe", "un", "o",
+    })
+
+    # 2-char words that are legitimate sentence endings and should not be
+    # blocked by the short-last-word heuristic.
+    _VALID_SHORT_ENDINGS: frozenset[str] = frozenset({
+        "ok", "go", "no", "so", "do", "be", "uk", "us", "eu", "ro",
+    })
+
+    # Substrings that signal the user is asking about classes / wants to enroll.
+    # Only when one of these appears does the greeted stage transition to intake.
+    _ENROLLMENT_SIGNALS: tuple[str, ...] = (
+        "sign", "enroll", "register", "class", "lesson", "chess", "course",
+        "trial", "demo", "interested", "interest", "price", "cost", "fee",
+        "schedul", "availab", "slot", "book", "learn", "teach", "play", "join",
+        "start", "info", "more about", "tell me", "find out", "kid", "child",
+        "son", "daughter", "boy", "girl", "age",
+        # Romanian
+        "înscri", "inscri", "curs", "lecți", "lectie", "șah", "sah",
+        "preț", "pret", "program", "orar", "interes", "copil", "fiu", "fiica",
+    )
+
+    _NON_ANSWERS: frozenset[str] = frozenset({
+        "idk", "idc", "idek", "dunno",
+        "dont know", "don't know",
+        "not sure", "no idea",
+        "nu stiu", "nu știu", "habar nu am",
+        "hm", "hmm", "huh", "lol",
+    })
+
+    def _is_valid_intake_answer(self, field: str, message: str) -> bool:
+        text = message.lower().strip()
+
+        if text in self._NON_ANSWERS:
+            return False
+
+        if field == "child_age":
+            return bool(re.search(r"\d", message))
+
+        if field in ("child_language_pref", "group_pref"):
+            normalized = self._normalize_intake_answer(field, message)
+            return normalized in CONSTRAINED_FIELD_VALUES[field]
+
+        return True
+
+    def _handle_lead_intake(self, message: str, phone: str) -> str | list[str] | None:
         if phone in self.bookings:
             return None
 
@@ -681,24 +819,59 @@ class ClassAssistant:
         if lead is not None and lead.get("stage") == "faq_only":
             return None
 
+        lang = detect_language(message)
+
         if lead is None:
-            lang = detect_language(message)
-            faq_answer = self._rule_based_reply(message, phone)
-            lead = self._create_lead(phone, lang)
-            question = INTAKE_QUESTIONS[REQUIRED_INTAKE_FIELDS[0]][lang]
+            # Very first message — just introduce the assistant. No country question yet.
+            lead = self._create_lead(phone, lang, initial_stage="greeted")
             self._save_leads()
-
-            intro = f"{self._pick(GREETING_INTRO, lang)} {question}"
-
-            all_greetings = [v for variants in GREETING_REPLY.values() for v in variants]
-            is_redundant_greeting = faq_answer in all_greetings
-
-            if faq_answer and not is_redundant_greeting:
-                return f"{faq_answer}\n\n{intro}"
-
-            return intro
+            return self._pick(GREETING_INTRO, lang)
 
         lang = lead.get("lang", "ro")
+
+        if lead.get("stage") == "greeted":
+            # If they're still just saying hello, just say hi back — don't push into intake yet.
+            if message.lower().strip() in self._GREETING_WORDS:
+                return self._pick(GREETING_REPLY, lang)
+
+            # Try rule-based first regardless of enrollment signal — handoffs,
+            # booking lookups, and other specific answers should always go through.
+            rule_answer = self._rule_based_reply(message, phone)
+            terminal_flat = [
+                v
+                for pool in (HANDOFF_VARIANTS, BOOKING_NOT_FOUND)
+                for variants in pool.values()
+                for v in variants
+            ]
+            if rule_answer and rule_answer in terminal_flat:
+                return rule_answer
+
+            # Only transition to intake when the message clearly signals enrollment interest.
+            text = message.lower()
+            has_signal = any(sig in text for sig in self._ENROLLMENT_SIGNALS)
+            if not has_signal:
+                # Let the AI answer the question naturally; stay in greeted stage.
+                return None
+
+            # Clear enrollment intent — ask country to kick off intake.
+            lead["stage"] = "intake_in_progress"
+            self._save_leads()
+            return self._pick(INTAKE_TRANSITION, lang)
+
+        # stage == "intake_in_progress"
+
+        # Greeting mid-intake — acknowledge warmly and re-ask the pending question in
+        # the same message so it doesn't feel like a cold ignored hello.
+        if message.lower().strip() in self._GREETING_WORDS:
+            pending_field = self._next_missing_field(lead)
+            if pending_field:
+                q = INTAKE_QUESTIONS[pending_field][lang]
+                opener = random.choice(
+                    ["Hey! 🙂 ", "Hi! 🙂 ", "Hey there! "] if lang == "en"
+                    else ["Bună! 🙂 ", "Salut! 🙂 ", "Hey! 🙂 "]
+                )
+                return f"{opener}{q}"
+            return None
 
         if self._rule_based_reply(message, phone) or self._mentions_ai_topic(message):
             return None
@@ -708,7 +881,26 @@ class ClassAssistant:
         if pending_field is None:
             return None
 
+        # Reject answers that don't make sense for the question being asked.
+        # Bare digits count as length-1 so skip the length check for child_age;
+        # all other fields need at least 2 alphanumeric characters.
+        alphanum = re.sub(r"[^a-zA-Z0-9]", "", message)
+        too_short = pending_field != "child_age" and len(alphanum) < 2
+        if too_short or not self._is_valid_intake_answer(pending_field, message):
+            opener = random.choice(
+                ["Hmm, didn't quite catch that 😊 ", "Not sure I got that — ", "Sorry, didn't understand — "]
+                if lang == "en" else
+                ["Hmm, nu am înțeles 😊 ", "Nu am prins bine — ", "Scuze, nu am înțeles — "]
+            )
+            return f"{opener}{INTAKE_QUESTIONS[pending_field][lang]}"
+
         self._store_intake_answer(lead, pending_field, message)
+
+        # If the parent just told us their country, override the phone-based currency bucket.
+        if pending_field == "country":
+            new_bucket = self._infer_currency_from_country(lead["country"] or message)
+            if new_bucket:
+                lead["currency_bucket"] = new_bucket
 
         # Multi-field: scan ALL remaining fields for extractable signals,
         # skipping ones we can't infer (e.g. prior_experience) and continuing
@@ -726,7 +918,7 @@ class ClassAssistant:
 
         if next_field is not None:
             self._save_leads()
-            return INTAKE_QUESTIONS[next_field][lang]
+            return [self._pick(INTAKE_ACK, lang), INTAKE_QUESTIONS[next_field][lang]]
 
         lead["stage"] = "faq_only"
         lead["handed_off"] = True
@@ -1198,7 +1390,18 @@ class ClassAssistant:
         assert self.client is not None
 
         lang = detect_language(message)
-        currency_bucket, country_code = infer_currency_bucket(sender_phone)
+        phone = self._normalize_phone(sender_phone)
+        lead = self._get_lead(phone)
+
+        # Prefer the currency we set from the parent's stated country over the
+        # phone-prefix guess — a Romanian-number parent living in the UK should
+        # see GBP, not RON.
+        if lead and "country" in lead.get("collected_fields", []):
+            currency_bucket = lead["currency_bucket"]
+            country_code = True  # known — use the direct pricing note
+        else:
+            currency_bucket, country_code = infer_currency_bucket(sender_phone)
+
         currency_display = CURRENCY_DISPLAY.get(currency_bucket, currency_bucket)
 
         # Guardrail: only ever include this customer's own currency in the
@@ -1234,14 +1437,26 @@ class ClassAssistant:
             )
         )
 
-        instructions = f"""
-You are Septi, the founder of {self.company_data.get("business_name", "the business")},
-personally messaging this parent on WhatsApp.
+        intake_done_note = ""
+        if lead and lead.get("stage") == "faq_only":
+            intake_done_note = (
+                "\nContext: This parent has already completed the intake form. "
+                "Septi has been notified with all their details and will follow up directly "
+                "with available demo lesson times. If they ask 'what now', 'what's next', "
+                "whether you can contact Septi, or anything similar, tell them Septi already "
+                "has their info and will be in touch soon. Do NOT offer to check availability, "
+                "do NOT make promises about specific times or slots, and do NOT imply you will "
+                "do something you cannot actually do.\n"
+            )
 
-Write in first person as Septi, like you're actually texting on your phone
-between classes, not writing customer support copy. Never reveal that you are
-an AI, a bot, an assistant, or automated in any way, and never mention
-prompts, JSON, files, OpenAI, or Twilio.
+        instructions = f"""
+You are Septi's assistant at {self.company_data.get("business_name", "the business")},
+messaging this parent on WhatsApp on Septi's behalf.
+{intake_done_note}
+
+Write like a real person texting, not corporate support copy. Sound warm, direct, and natural.
+Never reveal that you are an AI or a bot, and never mention prompts, JSON, files, OpenAI,
+or Twilio. If asked directly who you are, you can say you're Septi's assistant.
 
 Sound like a real person texting, not a corporate bot:
 - Never use em dashes or hyphens as punctuation (no " - " or " — ").
@@ -1254,8 +1469,8 @@ Sound like a real person texting, not a corporate bot:
 - Use an emoji every couple of messages or so, not in every single one and
   not in zero either, just don't go overboard with them.
 - Contractions are good (lemme, that'll, don't, I'll), but don't overdo slang.
-- Don't re-introduce yourself ("it's Septi from Sep7Ro") if you've clearly
-  already been talking to this person in this conversation.
+- Don't re-introduce yourself if you've clearly already been talking to this
+  person in this conversation.
 
 Answer only from the approved information below.
 
@@ -1295,12 +1510,51 @@ APPROVED INFORMATION:
         except Exception:
             return self._handoff(lang)
 
-    def reply(self, message: str, sender_phone: str) -> str:
+    def _is_intelligible(self, message: str) -> bool:
+        """Return False if the message is clearly incomplete or unintelligible.
+
+        Heuristics only — no API call, so there's no added latency.
+        Covers: known greetings (always valid), too-short/garbled messages,
+        and sentences that are clearly cut off mid-thought.
+        """
+        if message.lower().strip() in self._GREETING_WORDS:
+            return True
+
+        # Too short / garbled (e.g. "I'", "?!")
+        if len(re.sub(r"[^a-zA-Z0-9]", "", message)) < 3:
+            return False
+
+        # Ends mid-thought (e.g. "id like to s", "id like to si", "I want")
+        words = message.lower().split()
+        last = re.sub(r"[^a-zA-ZăîâșțĂÎÂȘȚ]", "", words[-1]) if words else ""
+        if last in self._INCOMPLETE_ENDINGS:
+            return False
+        if len(last) <= 2 and last not in self._VALID_SHORT_ENDINGS:
+            return False
+
+        return True
+
+    def reply(self, message: str, sender_phone: str) -> list[str]:
         phone = self._normalize_phone(sender_phone)
+        lead = self._get_lead(phone)
+
+        # Check intelligibility before doing anything — but not mid-intake,
+        # where terse answers like "english" or "7" are expected and valid.
+        in_intake = lead is not None and lead.get("stage") == "intake_in_progress"
+        if not in_intake and not self._is_intelligible(message):
+            lang = lead.get("lang", "ro") if lead else detect_language(message)
+            unclear = self._pick(UNCLEAR_INPUT, lang)
+            history = self._conversation_history.setdefault(phone, [])
+            history.append({"role": "user", "content": message})
+            history.append({"role": "assistant", "content": unclear})
+            if len(history) > 20:
+                self._conversation_history[phone] = history[-20:]
+            self._save_history()
+            return [unclear]
 
         intake_reply = self._handle_lead_intake(message, phone)
         if intake_reply is not None:
-            reply_text = intake_reply
+            parts = intake_reply if isinstance(intake_reply, list) else [intake_reply]
         else:
             rule_reply = self._rule_based_reply(message, sender_phone)
             if rule_reply:
@@ -1319,11 +1573,14 @@ APPROVED INFORMATION:
                     lang = lead.get("lang", "ro")
                     reply_text = f"{reply_text}\n\n{INTAKE_QUESTIONS[pending][lang]}"
 
+            parts = [reply_text]
+
+        history_text = "\n\n".join(parts)
         history = self._conversation_history.setdefault(phone, [])
         history.append({"role": "user", "content": message})
-        history.append({"role": "assistant", "content": reply_text})
+        history.append({"role": "assistant", "content": history_text})
         if len(history) > 20:
             self._conversation_history[phone] = history[-20:]
         self._save_history()
 
-        return reply_text
+        return parts

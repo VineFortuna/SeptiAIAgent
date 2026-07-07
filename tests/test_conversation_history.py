@@ -40,10 +40,11 @@ def test_ai_reply_receives_prior_history(bot) -> None:
 
     phone = "+447911123456"
     bot.reply("Hi", phone)
+    bot.reply("interested in chess", phone)  # creates lead, asks country
+    bot.reply("UK", phone)                   # stores country, next intake question
+
     bot.reply("How much does the standard package cost?", phone)
 
-    _, kwargs = mock_client.responses.create.call_args
-    input_sent = kwargs.get("input") or mock_client.responses.create.call_args[0][0]
     input_sent = mock_client.responses.create.call_args[1]["input"]
 
     assert isinstance(input_sent, list)
