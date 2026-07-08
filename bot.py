@@ -135,7 +135,7 @@ INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
         "ro": "Copilul ar prefera Exploratori (relaxat, curios) sau Strategi (competitiv, iubește provocările)?",
     },
     "extra_notes": {
-        "en": "Anything else you'd like Septi to know before she reaches out?",
+        "en": "Anything else you'd like Septi to know before he reaches out?",
         "ro": "Mai este ceva ce ați vrea să știe Septi înainte să vă contacteze?",
     },
 }
@@ -1104,7 +1104,7 @@ class ClassAssistant:
 
         # Multi-field: scan ALL remaining fields for extractable signals,
         # skipping ones we can't infer (e.g. prior_experience) and continuing
-        # to the ones after them. This lets "She's 8, weekends, Exploratori"
+        # to the ones after them. This lets "He's 8, weekends, Exploratori"
         # capture age + availability + group even though prior_experience sits
         # in between and still needs a direct answer.
         for field in REQUIRED_INTAKE_FIELDS:
