@@ -7,11 +7,11 @@ def _all_variants(pool: dict[str, list[str]]) -> list[str]:
 
 def test_new_lead_gets_greeting_then_country_question(bot) -> None:
     phone = "+40712345678"
-    first_reply = bot.reply("Hi, interested in chess lessons", phone)
-    # First message always returns just the greeting
+    # Pure greeting → bot says hi, no intake question yet
+    first_reply = bot.reply("Hi", phone)
     assert first_reply[-1].strip().endswith("?")
     assert "country" not in first_reply[-1].lower() and "tara" not in first_reply[-1].lower()
-    # Second message with clear enrollment intent should start intake (ask country)
+    # Clear enrollment signal → bot starts intake and asks country
     second_reply = bot.reply("I'd like to sign up", phone)
     assert second_reply[-1].strip().endswith("?")
 

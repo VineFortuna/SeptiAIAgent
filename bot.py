@@ -993,15 +993,18 @@ class ClassAssistant:
         lang = detect_language(message)
 
         if lead is None:
-            # Very first message — just introduce the assistant. No country question yet.
             lead = self._create_lead(phone, lang, initial_stage="greeted")
             self._save_leads()
-            return self._pick(GREETING_INTRO, lang)
+            # Pure greeting → say hi and wait to see what they need
+            if message.lower().strip() in self._GREETING_WORDS:
+                return self._pick(GREETING_INTRO, lang)
+            # Substantive first message → fall through to greeted-stage logic below
+            # so we actually respond to what they said instead of ignoring it
 
         lang = lead.get("lang", "ro")
 
         if lead.get("stage") == "greeted":
-            # If they're still just saying hello, just say hi back — don't push into intake yet.
+            # Saying hello mid-conversation → just say hi back
             if message.lower().strip() in self._GREETING_WORDS:
                 return self._pick(GREETING_REPLY, lang)
 
