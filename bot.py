@@ -804,9 +804,9 @@ class ClassAssistant:
     # Deliberately excludes generic info phrases ("tell me", "info", "more about") so
     # parents who want to learn about the school first don't get pushed into intake.
     _ENROLLMENT_SIGNALS: tuple[str, ...] = (
-        "sign", "enroll", "register", "class", "lesson", "chess", "course",
+        "sign", "enroll", "register", "class", "lesson", "course",
         "trial", "demo", "interested", "interest", "price", "cost", "fee",
-        "schedul", "availab", "slot", "book", "play", "join",
+        "schedul", "availab", "slot", "booking", "play", "join",
         "start", "kid", "child", "son", "daughter", "boy", "girl", "age",
         # Romanian
         "înscri", "inscri", "curs", "lecți", "lectie", "șah", "sah",
@@ -1005,8 +1005,10 @@ class ClassAssistant:
             if message.lower().strip() in self._GREETING_WORDS:
                 return self._pick(GREETING_REPLY, lang)
 
-            # Try rule-based first regardless of enrollment signal — handoffs,
-            # booking lookups, and other specific answers should always go through.
+            # Try rule-based first — handoffs and booking lookups must always go through
+            # regardless of enrollment signals. Other rule answers (social media, teachers,
+            # etc.) are NOT returned here; the enrollment check below decides what happens
+            # next, and if no signal fires, the outer reply() picks them up.
             rule_answer = self._rule_based_reply(message, phone)
             terminal_flat = [
                 v
@@ -1021,7 +1023,7 @@ class ClassAssistant:
             text = message.lower()
             has_signal = any(sig in text for sig in self._ENROLLMENT_SIGNALS)
             if not has_signal:
-                # Let the AI answer the question naturally; stay in greeted stage.
+                # Let the AI (or outer rule) answer naturally; stay in greeted stage.
                 return None
 
             # Clear enrollment intent — ask country to kick off intake.
@@ -1322,6 +1324,36 @@ class ClassAssistant:
             ),
         ):
             return self._social_media_reply(lang)
+
+        if self._contains_any(
+            text,
+            (
+                "google review", "google rating", "reviews", "recenzii", "recenzi",
+                "what do people say", "what do parents say", "testimonial",
+            ),
+        ):
+            reviews_url = self.company_data.get("trust_links", {}).get("google_reviews", "")
+            if reviews_url:
+                if lang == "ro":
+                    return f"Iată recenziile părinților pe Google 🙂 {reviews_url}"
+                return f"Here are the Google reviews from other parents 🙂 {reviews_url}"
+            return self._handoff(lang)
+
+        if self._contains_any(
+            text,
+            (
+                "free guide", "chess guide", "free resource", "pdf", "download",
+                "ghid gratuit", "ghid de sah", "ghid de șah", "resurse gratuite",
+            ),
+        ):
+            fr = self.company_data.get("free_resources", {})
+            url = fr.get("chess_guide_url", "")
+            desc = self._bilingual(fr.get("chess_guide_description", {}), lang) or ""
+            if url:
+                if lang == "ro":
+                    return f"Avem un ghid gratuit de șah 🙂 {desc}\n\n{url}"
+                return f"We have a free chess guide 🙂 {desc}\n\n{url}"
+            return self._handoff(lang)
 
         if self._contains_any(
             text,
