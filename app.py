@@ -104,8 +104,8 @@ def whatsapp_webhook() -> Response:
     if not message and num_media > 0:
         sender_wa = f"whatsapp:{sender}"
         media_text = (
-            "I can only read text messages right now — feel free to type your question 🙂\n\n"
-            "Nu pot citi mesaje vocale sau imagini deocamdată — scrie-mi întrebarea 🙂"
+            "I can only read text messages right now, feel free to type your question 🙂\n\n"
+            "Nu pot citi mesaje vocale sau imagini deocamdată, scrie-mi întrebarea 🙂"
         )
         Thread(
             target=send_whatsapp_message,

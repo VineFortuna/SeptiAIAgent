@@ -123,8 +123,8 @@ INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
         "ro": "A mai jucat șah copilul înainte?",
     },
     "availability_pref": {
-        "en": "Which days work best for your child? Weekdays, weekends, specific days — whatever works 🙂",
-        "ro": "Ce zile funcționează cel mai bine? Zile de lucru, weekend, zile specifice — orice e bine 🙂",
+        "en": "Which days work best for your child? Weekdays, weekends, specific days, whatever works 🙂",
+        "ro": "Ce zile funcționează cel mai bine? Zile de lucru, weekend, zile specifice, orice e bine 🙂",
     },
     "school_dismissal": {
         "en": "And roughly what time do they get home from school, or when are they generally free to start?",
@@ -143,12 +143,12 @@ INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
 GREETING_INTRO: dict[str, list[str]] = {
     "en": [
         "Hey! I'm Septi's assistant at Sep7Ro 🙂 How can I help you?",
-        "Hi there! I'm the assistant here at Sep7Ro — how can I help?",
+        "Hi there! I'm the assistant here at Sep7Ro, how can I help?",
         "Hey, I'm Septi's assistant from Sep7Ro! What can I do for you?",
     ],
     "ro": [
         "Bună! Sunt asistenta lui Septi la Sep7Ro 🙂 Cu ce te pot ajuta?",
-        "Salut! Sunt asistenta de la Sep7Ro — cu ce te ajut?",
+        "Salut! Sunt asistenta de la Sep7Ro, cu ce te ajut?",
         "Hey, sunt asistenta lui Septi de la Sep7Ro! Cu ce pot ajuta?",
     ],
 }
@@ -184,13 +184,13 @@ GREETING_REPLY: dict[str, list[str]] = {
 UNCLEAR_INPUT: dict[str, list[str]] = {
     "en": [
         "Sorry, didn't quite get that 😊 What did you want to know?",
-        "Hmm, didn't catch that — what can I help you with?",
-        "Not sure I followed — feel free to ask anything 🙂",
+        "Hmm, didn't catch that. What can I help you with?",
+        "Not sure I followed, feel free to ask anything 🙂",
     ],
     "ro": [
         "Hmm, nu am înțeles bine 😊 Cu ce te pot ajuta?",
-        "Nu am prins — spune-mi cu ce pot ajuta 🙂",
-        "Nu prea am înțeles — ce ai vrea să știi?",
+        "Nu am prins, spune-mi cu ce pot ajuta 🙂",
+        "Nu prea am înțeles, ce ai vrea să știi?",
     ],
 }
 
@@ -198,12 +198,12 @@ INTAKE_TRANSITION: dict[str, list[str]] = {
     "en": [
         "Happy to help! What country are you in?",
         "Of course! Before I get into that, what country are you based in?",
-        "Sure thing! Just one quick question — what country are you in?",
+        "Sure thing! Just one quick question, what country are you in?",
     ],
     "ro": [
         "Cu plăcere! Din ce țară ești?",
         "Sigur! Înainte să îți răspund, din ce țară ești?",
-        "Clar! O singură întrebare rapidă — din ce țară ești?",
+        "Clar! O singură întrebare rapidă, din ce țară ești?",
     ],
 }
 
@@ -1065,9 +1065,9 @@ class ClassAssistant:
         too_short = pending_field != "child_age" and len(alphanum) < 2
         if too_short or not self._is_valid_intake_answer(pending_field, message):
             opener = random.choice(
-                ["Hmm, didn't quite catch that 😊 ", "Not sure I got that — ", "Sorry, didn't understand — "]
+                ["Hmm, didn't quite catch that 😊 ", "Not sure I got that, ", "Sorry, didn't get that. "]
                 if lang == "en" else
-                ["Hmm, nu am înțeles 😊 ", "Nu am prins bine — ", "Scuze, nu am înțeles — "]
+                ["Hmm, nu am înțeles 😊 ", "Nu am prins bine, ", "Scuze, nu am înțeles. "]
             )
             return f"{opener}{INTAKE_QUESTIONS[pending_field][lang]}"
 
