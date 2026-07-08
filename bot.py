@@ -86,7 +86,6 @@ CURRENCY_DISPLAY: dict[str, str] = {
 
 CONSTRAINED_FIELD_VALUES: dict[str, frozenset[str]] = {
     "child_language_pref": frozenset({"ro", "en"}),
-    "availability_pref": frozenset({"weekday", "weekend", "both"}),
     "group_pref": frozenset({"exploratori", "strategi"}),
 }
 
@@ -97,7 +96,9 @@ REQUIRED_INTAKE_FIELDS: tuple[str, ...] = (
     "child_age",
     "prior_experience",
     "availability_pref",
+    "school_dismissal",
     "group_pref",
+    "extra_notes",
 )
 
 INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
@@ -106,8 +107,8 @@ INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
         "ro": "Din ce țară ești?",
     },
     "child_language_pref": {
-        "en": "Does your child speak Romanian or English for class?",
-        "ro": "Copilul vorbește română sau engleză pentru clasă?",
+        "en": "What languages can your child speak?",
+        "ro": "Ce limbi vorbește copilul?",
     },
     "timezone": {
         "en": "What time zone are you in?",
@@ -122,12 +123,20 @@ INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
         "ro": "A mai jucat șah copilul înainte?",
     },
     "availability_pref": {
-        "en": "Would weekdays (afternoon/evening) or weekends work better for you?",
-        "ro": "Vă e mai convenabil în timpul săptămânii (după-amiază/seară) sau în weekend?",
+        "en": "Which days work best for your child? Weekdays, weekends, specific days — whatever works 🙂",
+        "ro": "Ce zile funcționează cel mai bine? Zile de lucru, weekend, zile specifice — orice e bine 🙂",
+    },
+    "school_dismissal": {
+        "en": "And roughly what time do they get home from school, or when are they generally free to start?",
+        "ro": "Și cam la ce oră ajunge acasă de la școală, sau de când e liber să înceapă?",
     },
     "group_pref": {
         "en": "Would your child prefer Exploratori (relaxed, curious) or Strategi (competitive, likes a challenge)?",
         "ro": "Copilul ar prefera Exploratori (relaxat, curios) sau Strategi (competitiv, iubește provocările)?",
+    },
+    "extra_notes": {
+        "en": "Anything else you'd like Septi to know before she reaches out?",
+        "ro": "Mai este ceva ce ați vrea să știe Septi înainte să vă contacteze?",
     },
 }
 
@@ -517,8 +526,16 @@ class ClassAssistant:
             return normalized if normalized in CONSTRAINED_FIELD_VALUES[field] else None
 
         if field == "child_age":
-            m = re.search(r"\b(\d+)\s*(?:ani?|years?\s*old|yo)\b", message.lower())
-            if m and 3 <= int(m.group(1)) <= 18:
+            lowered = message.lower()
+            half = re.search(
+                r"\b(\d+)\s+(?:and\s+a\s+half|și\s+(?:o\s+)?jumătate)\b", lowered
+            )
+            if half:
+                val = int(half.group(1)) + 0.5
+                if 3 <= val < 18:
+                    return str(val)
+            m = re.search(r"\b(\d+)\s*(?:ani?|years?\s*old|yo)\b", lowered)
+            if m and 3 <= int(m.group(1)) <= 17:
                 return m.group(1)
 
         return None
@@ -706,28 +723,34 @@ class ClassAssistant:
         lowered = text.lower().strip()
 
         if field == "child_language_pref":
-            if self._contains_any(lowered, ("romana", "română", "romanian")):
-                return "ro"
-            if self._contains_any(lowered, ("engleza", "engleză", "english")):
-                return "en"
-        elif field == "availability_pref":
-            has_weekday = self._contains_any(lowered, ("saptamana", "săptămână", "weekday"))
-            has_weekend = "weekend" in lowered
-            if has_weekday and has_weekend:
+            has_ro = self._contains_any(lowered, ("romana", "română", "romanian"))
+            has_en = self._contains_any(lowered, ("engleza", "engleză", "english"))
+            if has_ro and has_en:
                 return "both"
-            if has_weekday:
-                return "weekday"
-            if has_weekend:
-                return "weekend"
+            if has_ro:
+                return "ro"
+            if has_en:
+                return "en"
         elif field == "group_pref":
             if self._contains_any(lowered, ("explorator", "explorer", "curious", "relaxed", "curios", "relaxat")):
                 return "exploratori"
             if self._contains_any(lowered, ("strateg", "competit", "challenge", "provocare")):
                 return "strategi"
         elif field == "child_age":
+            half = re.search(
+                r"\b(\d+)\s+(?:and\s+a\s+half|și\s+(?:o\s+)?jumătate)\b", lowered
+            )
+            if half:
+                val = int(half.group(1)) + 0.5
+                if 3 <= val < 18:
+                    return str(val)
             m = re.search(r"\b(\d+)\s*(?:ani?|years?\s*old|yo)\b", lowered)
-            if m and 3 <= int(m.group(1)) <= 18:
+            if m and 3 <= int(m.group(1)) <= 17:
                 return m.group(1)
+        elif field == "timezone":
+            city_tz = self._lookup_city_timezone(lowered)
+            if city_tz:
+                return city_tz
 
         return text.strip()
 
@@ -750,7 +773,9 @@ class ClassAssistant:
             f"Child's age: {lead.get('child_age') or '-'}",
             f"Chess experience: {lead.get('prior_experience') or '-'}",
             f"Availability: {lead.get('availability_pref') or '-'}",
+            f"Free from: {lead.get('school_dismissal') or '-'}",
             f"Group preference: {lead.get('group_pref') or '-'}",
+            f"Extra notes: {lead.get('extra_notes') or '-'}",
         ]
 
         self.notifier("\n".join(lines))
@@ -776,12 +801,13 @@ class ClassAssistant:
 
     # Substrings that signal the user is asking about classes / wants to enroll.
     # Only when one of these appears does the greeted stage transition to intake.
+    # Deliberately excludes generic info phrases ("tell me", "info", "more about") so
+    # parents who want to learn about the school first don't get pushed into intake.
     _ENROLLMENT_SIGNALS: tuple[str, ...] = (
         "sign", "enroll", "register", "class", "lesson", "chess", "course",
         "trial", "demo", "interested", "interest", "price", "cost", "fee",
-        "schedul", "availab", "slot", "book", "learn", "teach", "play", "join",
-        "start", "info", "more about", "tell me", "find out", "kid", "child",
-        "son", "daughter", "boy", "girl", "age",
+        "schedul", "availab", "slot", "book", "teach", "play", "join",
+        "start", "kid", "child", "son", "daughter", "boy", "girl", "age",
         # Romanian
         "înscri", "inscri", "curs", "lecți", "lectie", "șah", "sah",
         "preț", "pret", "program", "orar", "interes", "copil", "fiu", "fiica",
@@ -795,8 +821,149 @@ class ClassAssistant:
         "hm", "hmm", "huh", "lol",
     })
 
+    # Maps lowercase city names to a human-readable timezone string for Septi.
+    # Word-boundary matched, so "la" won't fire on "class" or "language".
+    _CITY_TIMEZONES: dict[str, str] = {
+        # Canada
+        "toronto": "Eastern Time (ET)", "montreal": "Eastern Time (ET)",
+        "ottawa": "Eastern Time (ET)", "hamilton": "Eastern Time (ET)",
+        "mississauga": "Eastern Time (ET)", "brampton": "Eastern Time (ET)",
+        "kitchener": "Eastern Time (ET)", "waterloo": "Eastern Time (ET)",
+        "london ontario": "Eastern Time (ET)", "windsor": "Eastern Time (ET)",
+        "quebec city": "Eastern Time (ET)", "quebec": "Eastern Time (ET)",
+        "vancouver": "Pacific Time (PT)", "victoria": "Pacific Time (PT)",
+        "burnaby": "Pacific Time (PT)", "surrey": "Pacific Time (PT)",
+        "richmond": "Pacific Time (PT)", "kelowna": "Pacific Time (PT)",
+        "calgary": "Mountain Time (MT)", "edmonton": "Mountain Time (MT)",
+        "lethbridge": "Mountain Time (MT)", "red deer": "Mountain Time (MT)",
+        "winnipeg": "Central Time (CT)", "saskatoon": "Central Time (CT)",
+        "regina": "Central Time (CT)",
+        "halifax": "Atlantic Time (AT)", "moncton": "Atlantic Time (AT)",
+        "fredericton": "Atlantic Time (AT)",
+        # USA
+        "new york": "Eastern Time (ET)", "nyc": "Eastern Time (ET)",
+        "new york city": "Eastern Time (ET)", "miami": "Eastern Time (ET)",
+        "boston": "Eastern Time (ET)", "washington dc": "Eastern Time (ET)",
+        "atlanta": "Eastern Time (ET)", "philadelphia": "Eastern Time (ET)",
+        "pittsburgh": "Eastern Time (ET)", "detroit": "Eastern Time (ET)",
+        "cleveland": "Eastern Time (ET)", "charlotte": "Eastern Time (ET)",
+        "baltimore": "Eastern Time (ET)", "jacksonville": "Eastern Time (ET)",
+        "chicago": "Central Time (CT)", "houston": "Central Time (CT)",
+        "dallas": "Central Time (CT)", "austin": "Central Time (CT)",
+        "san antonio": "Central Time (CT)", "minneapolis": "Central Time (CT)",
+        "nashville": "Central Time (CT)", "memphis": "Central Time (CT)",
+        "new orleans": "Central Time (CT)", "kansas city": "Central Time (CT)",
+        "st louis": "Central Time (CT)",
+        "denver": "Mountain Time (MT)", "phoenix": "Mountain Time (MT)",
+        "salt lake city": "Mountain Time (MT)", "albuquerque": "Mountain Time (MT)",
+        "los angeles": "Pacific Time (PT)", "san francisco": "Pacific Time (PT)",
+        "san jose": "Pacific Time (PT)", "seattle": "Pacific Time (PT)",
+        "portland": "Pacific Time (PT)", "las vegas": "Pacific Time (PT)",
+        "san diego": "Pacific Time (PT)", "sacramento": "Pacific Time (PT)",
+        # Romania
+        "bucharest": "Eastern European Time (EET)",
+        "cluj": "Eastern European Time (EET)",
+        "cluj-napoca": "Eastern European Time (EET)",
+        "timisoara": "Eastern European Time (EET)",
+        "iasi": "Eastern European Time (EET)",
+        "constanta": "Eastern European Time (EET)",
+        "brasov": "Eastern European Time (EET)",
+        "galati": "Eastern European Time (EET)",
+        "craiova": "Eastern European Time (EET)",
+        "ploiesti": "Eastern European Time (EET)",
+        "oradea": "Eastern European Time (EET)",
+        "suceava": "Eastern European Time (EET)",
+        "sibiu": "Eastern European Time (EET)",
+        "targu mures": "Eastern European Time (EET)",
+        # Moldova
+        "chisinau": "Eastern European Time (EET)",
+        "balti": "Eastern European Time (EET)",
+        # UK
+        "london": "Greenwich Mean Time (GMT)",
+        "birmingham": "Greenwich Mean Time (GMT)",
+        "manchester": "Greenwich Mean Time (GMT)",
+        "glasgow": "Greenwich Mean Time (GMT)",
+        "edinburgh": "Greenwich Mean Time (GMT)",
+        "leeds": "Greenwich Mean Time (GMT)",
+        "bristol": "Greenwich Mean Time (GMT)",
+        "liverpool": "Greenwich Mean Time (GMT)",
+        "cardiff": "Greenwich Mean Time (GMT)",
+        "belfast": "Greenwich Mean Time (GMT)",
+        # Western Europe
+        "paris": "Central European Time (CET)",
+        "berlin": "Central European Time (CET)",
+        "amsterdam": "Central European Time (CET)",
+        "brussels": "Central European Time (CET)",
+        "madrid": "Central European Time (CET)",
+        "barcelona": "Central European Time (CET)",
+        "rome": "Central European Time (CET)",
+        "milan": "Central European Time (CET)",
+        "vienna": "Central European Time (CET)",
+        "zurich": "Central European Time (CET)",
+        "geneva": "Central European Time (CET)",
+        "prague": "Central European Time (CET)",
+        "warsaw": "Central European Time (CET)",
+        "budapest": "Central European Time (CET)",
+        "munich": "Central European Time (CET)",
+        "hamburg": "Central European Time (CET)",
+        "frankfurt": "Central European Time (CET)",
+        "stockholm": "Central European Time (CET)",
+        "oslo": "Central European Time (CET)",
+        "copenhagen": "Central European Time (CET)",
+        "lisbon": "Western European Time (WET)",
+        "dublin": "Greenwich Mean Time (GMT)",
+        # Eastern Europe
+        "helsinki": "Eastern European Time (EET)",
+        "athens": "Eastern European Time (EET)",
+        "riga": "Eastern European Time (EET)",
+        "tallinn": "Eastern European Time (EET)",
+        "vilnius": "Eastern European Time (EET)",
+        "kyiv": "Eastern European Time (EET)",
+        "kiev": "Eastern European Time (EET)",
+        # Middle East
+        "dubai": "Gulf Standard Time (GST, UTC+4)",
+        "abu dhabi": "Gulf Standard Time (GST, UTC+4)",
+        "riyadh": "Arabia Standard Time (UTC+3)",
+        "tel aviv": "Israel Standard Time (UTC+2)",
+        "istanbul": "Turkey Time (TRT, UTC+3)",
+        "doha": "Arabia Standard Time (UTC+3)",
+        "beirut": "Eastern European Time (EET)",
+        "cairo": "Eastern European Time (EET)",
+        # Asia
+        "tokyo": "Japan Standard Time (JST, UTC+9)",
+        "singapore": "Singapore Time (SGT, UTC+8)",
+        "hong kong": "Hong Kong Time (HKT, UTC+8)",
+        "beijing": "China Standard Time (CST, UTC+8)",
+        "shanghai": "China Standard Time (CST, UTC+8)",
+        "seoul": "Korea Standard Time (KST, UTC+9)",
+        "delhi": "India Standard Time (IST, UTC+5:30)",
+        "mumbai": "India Standard Time (IST, UTC+5:30)",
+        "bangalore": "India Standard Time (IST, UTC+5:30)",
+        "kuala lumpur": "Malaysia Time (MYT, UTC+8)",
+        "jakarta": "Western Indonesia Time (WIB, UTC+7)",
+        "bangkok": "Indochina Time (ICT, UTC+7)",
+        "karachi": "Pakistan Standard Time (PKT, UTC+5)",
+        # Oceania
+        "sydney": "Australian Eastern Time (AET)",
+        "melbourne": "Australian Eastern Time (AET)",
+        "brisbane": "Australian Eastern Time (AET)",
+        "perth": "Australian Western Time (AWST)",
+        "auckland": "New Zealand Standard Time (NZST)",
+    }
+
+    def _lookup_city_timezone(self, text: str) -> str | None:
+        lowered = text.lower()
+        for city, tz in self._CITY_TIMEZONES.items():
+            if re.search(r"\b" + re.escape(city) + r"\b", lowered):
+                return tz
+        return None
+
     def _is_valid_intake_answer(self, field: str, message: str) -> bool:
         text = message.lower().strip()
+
+        # extra_notes is free-form — any non-empty reply is acceptable
+        if field == "extra_notes":
+            return True
 
         if text in self._NON_ANSWERS:
             return False
@@ -804,7 +971,11 @@ class ClassAssistant:
         if field == "child_age":
             return bool(re.search(r"\d", message))
 
-        if field in ("child_language_pref", "group_pref"):
+        if field == "child_language_pref":
+            normalized = self._normalize_intake_answer(field, message)
+            return normalized in ("ro", "en", "both")
+
+        if field == "group_pref":
             normalized = self._normalize_intake_answer(field, message)
             return normalized in CONSTRAINED_FIELD_VALUES[field]
 
@@ -873,12 +1044,16 @@ class ClassAssistant:
                 return f"{opener}{q}"
             return None
 
-        if self._rule_based_reply(message, phone) or self._mentions_ai_topic(message):
-            return None
-
         pending_field = self._next_missing_field(lead)
 
         if pending_field is None:
+            return None
+
+        # extra_notes accepts any reply — don't let rule-based handlers steal it.
+        # (e.g. "Thanks, nothing else" would otherwise trigger the thanks handler.)
+        if pending_field != "extra_notes" and (
+            self._rule_based_reply(message, phone) or self._mentions_ai_topic(message)
+        ):
             return None
 
         # Reject answers that don't make sense for the question being asked.
@@ -893,6 +1068,29 @@ class ClassAssistant:
                 ["Hmm, nu am înțeles 😊 ", "Nu am prins bine — ", "Scuze, nu am înțeles — "]
             )
             return f"{opener}{INTAKE_QUESTIONS[pending_field][lang]}"
+
+        # If the child speaks both languages, ask which they'd prefer for class.
+        if pending_field == "child_language_pref":
+            if self._normalize_intake_answer("child_language_pref", message) == "both":
+                if lang == "en":
+                    return ["Nice, they're bilingual 🙂", "Which language would your child prefer to speak during chess classes?"]
+                else:
+                    return ["Super, sunt bilingvi 🙂", "Ce limbă ar prefera copilul să vorbească la orele de șah?"]
+
+        # Sep7Ro classes are for children under 18 only.
+        if pending_field == "child_age":
+            age_match = re.search(r"\b(\d+)\b", message)
+            if age_match and int(age_match.group(1)) >= 18:
+                if lang == "en":
+                    return (
+                        "Our chess classes are designed for children under 18 🙂 "
+                        "If you have a younger child you'd like to enroll, how old are they?"
+                    )
+                else:
+                    return (
+                        "Clasele noastre de șah sunt pentru copii sub 18 ani 🙂 "
+                        "Dacă aveți un copil mai mic pe care doriți să îl înregistrați, câți ani are?"
+                    )
 
         self._store_intake_answer(lead, pending_field, message)
 
@@ -942,6 +1140,32 @@ class ClassAssistant:
         pool = GROUP_LISTING_SINGLE if len(names) == 1 else GROUP_LISTING_MULTI
 
         return self._pick(pool, lang).format(joined=joined)
+
+    def _social_media_reply(self, lang: str) -> str:
+        sm = self.company_data.get("social_media", {})
+        instagram = sm.get("instagram", "")
+        tiktok = sm.get("tiktok", "")
+        facebook = sm.get("facebook", "")
+        youtube = sm.get("youtube", "")
+        linktree = sm.get("linktree", "")
+
+        if lang == "ro":
+            return (
+                f"Ne găsești pe toate platformele 🙂\n\n"
+                f"Instagram: {instagram}\n"
+                f"TikTok: {tiktok}\n"
+                f"Facebook: {facebook}\n"
+                f"YouTube: {youtube}\n\n"
+                f"Sau vezi tot pe linkul ăsta: {linktree}"
+            )
+        return (
+            f"You can find us on all platforms 🙂\n\n"
+            f"Instagram: {instagram}\n"
+            f"TikTok: {tiktok}\n"
+            f"Facebook: {facebook}\n"
+            f"YouTube: {youtube}\n\n"
+            f"Or see everything in one place: {linktree}"
+        )
 
     def _rule_based_reply(
         self,
@@ -1087,6 +1311,17 @@ class ClassAssistant:
             ),
         ):
             return self._bilingual(self.company_data.get("class_duration"), lang, pick_one=True) or self._handoff(lang)
+
+        if self._contains_any(
+            text,
+            (
+                "instagram", "tiktok", "facebook", "youtube",
+                "social media", "social", "linktree",
+                "retele sociale", "rețele sociale",
+                "pagina de facebook", "pagina de instagram",
+            ),
+        ):
+            return self._social_media_reply(lang)
 
         faq_rules: list[tuple[tuple[str, ...], str]] = [
             (

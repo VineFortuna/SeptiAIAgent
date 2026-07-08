@@ -1,6 +1,58 @@
 {
   "business_name": "Sep7Ro Super Chess School",
   "assistant_name": "Class Assistant",
+  "about": {
+    "en": "Sep7Ro is an online chess school for kids ages 6–11, teaching live on Zoom in small groups. Founded by Septi, who has 16+ years of experience and has worked with 1,400+ students worldwide. Classes are available in Romanian and English, and every family gets a free 50-minute demo lesson with no obligation to continue.",
+    "ro": "Sep7Ro este o scoala de sah online pentru copii intre 6 si 11 ani, cu lectii live pe Zoom in grupe mici. Fondata de Septi, cu 16+ ani de experienta si peste 1.400 de elevi la nivel mondial. Clasele sunt disponibile in romana si engleza, iar fiecare familie primeste o lectie demo gratuita de 50 de minute, fara nicio obligatie."
+  },
+  "key_selling_points": {
+    "en": [
+      "Free 50-minute demo lesson, no commitment needed",
+      "Live Zoom classes in small groups (around 6 kids) so every child gets attention",
+      "Taught by Septi (16+ years experience, 1,400+ students worldwide)",
+      "Available in Romanian and English",
+      "Children ages 6–11, all levels welcome including complete beginners",
+      "Builds concentration, logical thinking, patience, and decision-making",
+      "Optional weekly tournaments to play with kids from other classes",
+      "Classes run once a week at a fixed weekly slot, year-round"
+    ],
+    "ro": [
+      "Lectie demo gratuita de 50 de minute, fara nicio obligatie",
+      "Lectii live pe Zoom in grupe mici (in jur de 6 copii), ca fiecare sa primeasca atentie",
+      "Predare de catre Septi (16+ ani experienta, 1.400+ elevi la nivel mondial)",
+      "Disponibil in romana si engleza",
+      "Copii intre 6 si 11 ani, toate nivelurile binevenite inclusiv incepatori totali",
+      "Dezvolta concentrarea, gandirea logica, rabdarea si capacitatea de decizie",
+      "Turnee saptamanale optionale pentru a juca cu copii din alte clase",
+      "Clasele au loc o data pe saptamana, in acelasi slot, pe tot parcursul anului"
+    ]
+  },
+  "instructors": {
+    "en": [
+      "Septi — founder and lead teacher, 16+ years of experience, has worked with 1,400+ students worldwide. Each class is designed to feel like a unique adventure in the chess universe.",
+      "Adam — teaches 100+ Romanian and Moldovan students weekly, classes in English.",
+      "Daniel (National Master) — works with intermediate and advanced students."
+    ],
+    "ro": [
+      "Septi — fondator si profesor principal, 16+ ani de experienta, a lucrat cu 1.400+ de elevi din toata lumea. Fiecare clasa e conceputa ca o aventura unica in universul sahului.",
+      "Adam — preda saptamanal la 100+ de elevi romani si moldoveni, cursuri in engleza.",
+      "Daniel (Maestru National) — lucreaza cu elevi de nivel intermediar si avansat."
+    ]
+  },
+  "social_media": {
+    "instagram": "https://www.instagram.com/sep7ro_super_chess_school",
+    "tiktok": "https://www.tiktok.com/@sep7ro",
+    "facebook": "https://www.facebook.com/Sep7Ro",
+    "youtube": "https://www.youtube.com/@sep7ro",
+    "linktree": "https://linktr.ee/sep7ro"
+  },
+  "free_resources": {
+    "chess_guide_url": "https://sep7ro.com/pdf-en",
+    "chess_guide_description": {
+      "en": "Free chess guide for kids ages 4–6, a great starting point even before joining a class",
+      "ro": "Ghid gratuit de sah pentru copii intre 4 si 6 ani, un punct de plecare excelent chiar inainte de a incepe o clasa"
+    }
+  },
   "location": {
     "en": [
       "We're online only, all lessons run live over Zoom so there's no physical address to visit",
@@ -50,8 +102,8 @@
       "Ne gasesti aici: https://sep7ro.com"
     ]
   },
-  "contact_phone": "REPLACE WITH BUSINESS PHONE NUMBER",
-  "contact_email": "REPLACE WITH BUSINESS EMAIL",
+  "contact_phone": "+1 437 871 0793",
+  "contact_email": "contact@sep7ro.com",
   "payment_methods": "REPLACE WITH ACCEPTED PAYMENT METHODS",
   "cancellation_policy": {
     "en": [

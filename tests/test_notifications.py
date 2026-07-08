@@ -57,7 +57,9 @@ def test_intake_completion_triggers_injected_notifier(bot) -> None:
     bot.reply("7 years old", phone)
     bot.reply("No, never played", phone)
     bot.reply("Weekday evenings", phone)
+    bot.reply("After 3:30pm", phone)
     bot.reply("Exploratori", phone)
+    bot.reply("No extra notes", phone)
 
     assert len(sent) == 1
     assert phone in sent[0]

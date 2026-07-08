@@ -11,8 +11,8 @@ def test_new_lead_gets_greeting_then_country_question(bot) -> None:
     # First message always returns just the greeting
     assert first_reply[-1].strip().endswith("?")
     assert "country" not in first_reply[-1].lower() and "tara" not in first_reply[-1].lower()
-    # Second message should ask country
-    second_reply = bot.reply("tell me more", phone)
+    # Second message with clear enrollment intent should start intake (ask country)
+    second_reply = bot.reply("I'd like to sign up", phone)
     assert second_reply[-1].strip().endswith("?")
 
 
@@ -52,7 +52,9 @@ def test_intake_completes_and_marks_handed_off(bot) -> None:
     bot.reply("7 years old", phone)
     bot.reply("No, never played", phone)
     bot.reply("Weekday evenings", phone)
-    final_reply = bot.reply("Exploratori", phone)
+    bot.reply("After 3:30pm", phone)
+    bot.reply("Exploratori", phone)
+    final_reply = bot.reply("Nothing else, thanks!", phone)
 
     lead = bot.leads[phone]
     assert lead["stage"] == "faq_only"
@@ -140,7 +142,9 @@ def test_handed_off_lead_does_not_restart_intake_later(bot) -> None:
     bot.reply("7 years old", phone)
     bot.reply("No, never played", phone)
     bot.reply("Weekday evenings", phone)
+    bot.reply("After 3:30pm", phone)
     bot.reply("Exploratori", phone)
+    bot.reply("No extra notes", phone)
 
     # Lead is now handed off. A later message should be a normal FAQ, not restart intake.
     reply = bot.reply("Can I speak to a staff member?", phone)
