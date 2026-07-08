@@ -796,7 +796,7 @@ class ClassAssistant:
     # 2-char words that are legitimate sentence endings and should not be
     # blocked by the short-last-word heuristic.
     _VALID_SHORT_ENDINGS: frozenset[str] = frozenset({
-        "ok", "go", "no", "so", "do", "be", "uk", "us", "eu", "ro",
+        "ok", "go", "no", "so", "do", "be", "uk", "us", "eu", "ro", "up",
     })
 
     # Substrings that signal the user is asking about classes / wants to enroll.
@@ -806,11 +806,11 @@ class ClassAssistant:
     _ENROLLMENT_SIGNALS: tuple[str, ...] = (
         "sign", "enroll", "register", "class", "lesson", "chess", "course",
         "trial", "demo", "interested", "interest", "price", "cost", "fee",
-        "schedul", "availab", "slot", "book", "teach", "play", "join",
+        "schedul", "availab", "slot", "book", "play", "join",
         "start", "kid", "child", "son", "daughter", "boy", "girl", "age",
         # Romanian
         "înscri", "inscri", "curs", "lecți", "lectie", "șah", "sah",
-        "preț", "pret", "program", "orar", "interes", "copil", "fiu", "fiica",
+        "preț", "pret", "interes", "copil", "fiu", "fiica",
     )
 
     _NON_ANSWERS: frozenset[str] = frozenset({
@@ -1322,6 +1322,45 @@ class ClassAssistant:
             ),
         ):
             return self._social_media_reply(lang)
+
+        if self._contains_any(
+            text,
+            (
+                "teacher", "instructor", "coach", "who teaches",
+                "who is septi", "about septi", "about the teacher",
+                "profesor", "cine preda", "cine sunt profesorii",
+                "cine e septi", "despre septi",
+            ),
+        ):
+            raw_instructors = self.company_data.get("instructors", {})
+            instructor_list = raw_instructors.get(lang) or raw_instructors.get("en") or []
+            if instructor_list:
+                body = "\n\n".join(instructor_list)
+                if lang == "ro":
+                    return f"Iată cine predă la Sep7Ro 🙂\n\n{body}"
+                return f"Here's who teaches at Sep7Ro 🙂\n\n{body}"
+            return self._handoff(lang)
+
+        if self._contains_any(
+            text,
+            (
+                "about the school", "about sep7ro", "tell me about", "tell me more",
+                "more about", "what do you offer", "what is sep7ro", "how does it work",
+                "what's the program", "describe the program", "more info", "what you offer",
+                "despre scoala", "despre sep7ro", "ce oferiti", "ce oferiți",
+                "cum functioneaza", "cum funcționează", "mai multe despre", "spune-mi mai mult",
+            ),
+        ):
+            about = self._bilingual(self.company_data.get("about"), lang)
+            raw_points = self.company_data.get("key_selling_points", {})
+            points_list = raw_points.get(lang) or raw_points.get("en") or []
+            if about:
+                body = about
+                if points_list:
+                    bullet_lines = "\n".join(f"• {p}" for p in points_list)
+                    body += f"\n\n{bullet_lines}"
+                return body
+            return self._handoff(lang)
 
         faq_rules: list[tuple[tuple[str, ...], str]] = [
             (
