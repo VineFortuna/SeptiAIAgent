@@ -40,8 +40,8 @@ def test_ai_reply_receives_prior_history(bot) -> None:
 
     phone = "+447911123456"
     bot.reply("Hi", phone)
-    bot.reply("interested in chess", phone)  # creates lead, asks country
-    bot.reply("UK", phone)                   # stores country, next intake question
+    bot.reply("I want to sign up", phone)  # enrollment signal → starts intake, asks country
+    bot.reply("UK", phone)                 # stores country, next intake question
 
     bot.reply("How much does the standard package cost?", phone)
 

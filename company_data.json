@@ -1,15 +1,36 @@
 {
   "business_name": "Sep7Ro Super Chess School",
-  "assistant_name": "Class Assistant",
+  "assistant_name": "Septi's Assistant",
+  "follow_up_window": "within 24 hours",
   "about": {
-    "en": "Sep7Ro is an online chess school for kids ages 6–11, teaching live on Zoom in small groups. Founded by Septi, who has 16+ years of experience and has worked with 1,400+ students worldwide. Classes are available in Romanian and English, and every family gets a free 50-minute demo lesson with no obligation to continue.",
-    "ro": "Sep7Ro este o scoala de sah online pentru copii intre 6 si 11 ani, cu lectii live pe Zoom in grupe mici. Fondata de Septi, cu 16+ ani de experienta si peste 1.400 de elevi la nivel mondial. Clasele sunt disponibile in romana si engleza, iar fiecare familie primeste o lectie demo gratuita de 50 de minute, fara nicio obligatie."
+    "en": "Sep7Ro is an online chess school for kids ages 6–11, teaching live on Zoom in small groups. A team of teachers teaching 1,400+ students worldwide. Classes are available in Romanian and English, and every child gets a free 50-minute demo lesson with no obligation to continue.",
+    "ro": "Sep7Ro este o scoala de sah online pentru copii intre 6 si 11 ani, cu lectii live pe Zoom in grupe mici. Fondata de Septi, o echipă de profesori cu peste 1.400 de elevi la nivel mondial. Clasele sunt disponibile in romana si engleza, iar fiecare copil primeste o lectie demo gratuita de 50 de minute, fara nicio obligatie."
+  },
+  "program_overview": {
+    "en": [
+      "Sep7Ro is an online chess school for kids ages 6 to 11",
+      "Lessons are live on Zoom in small groups, usually around 6 kids, so each child gets individual attention",
+      "Classes are taught by a team of teachers, teaching 1,400+ students worldwide",
+      "Lessons are available in both Romanian and English",
+      "Every child starts with a free 50-minute demo lesson, no obligation to continue after",
+      "Regular lessons are 60 minutes long and take place once a week at a fixed weekly slot",
+      "You only need a laptop or tablet with Zoom installed, no chess board needed at home"
+    ],
+    "ro": [
+      "Sep7Ro este o școală de șah online pentru copii între 6 și 11 ani",
+      "Lecțiile sunt live pe Zoom, în grupe mici, de obicei în jur de 6 copii, ca fiecare copil să primească atenție",
+      "Clasele sunt predate de o echipă de profesori, cu peste 1.400 de elevi din toată lumea",
+      "Lecțiile sunt disponibile atât în română, cât și în engleză",
+      "Fiecare copil începe cu o lecție demo gratuită de 50 de minute, fără nicio obligație să continue după",
+      "Lecțiile obișnuite durează 60 de minute și au loc o dată pe săptămână, în același slot fix",
+      "Aveți nevoie doar de laptop sau tabletă cu Zoom instalat, nu e nevoie de tablă de șah acasă"
+    ]
   },
   "key_selling_points": {
     "en": [
       "Free 50-minute demo lesson, no commitment needed",
       "Live Zoom classes in small groups (around 6 kids) so every child gets attention",
-      "Taught by Septi (16+ years experience, 1,400+ students worldwide)",
+      "Team of teachers, teaching 1,400+ students worldwide",
       "Available in Romanian and English",
       "Children ages 6–11, all levels welcome including complete beginners",
       "Builds concentration, logical thinking, patience, and decision-making",
@@ -89,6 +110,7 @@
       "Grupele se intalnesc o data pe saptamana la o ora fixa, spune-mi disponibilitatea si fusul orar"
     ]
   },
+  "available_slots": "REPLACE WITH ACTUAL WEEKLY SLOTS — e.g. Monday 5:00 PM EST / 10:00 PM GMT, Wednesday 6:00 PM EST / 11:00 PM GMT, Saturday 10:00 AM EST / 3:00 PM GMT",
   "registration_link": "REPLACE WITH REGISTRATION LINK",
   "website": {
     "en": [
@@ -216,12 +238,12 @@
   },
   "trial_class_policy": {
     "en": [
-      "Every family gets one free demo lesson, about 50 minutes, before deciding whether to enroll, no obligation at all",
+      "Every child gets one free demo lesson, about 50 minutes, before deciding whether to enroll, no obligation at all",
       "You get one free demo first, about 50 minutes, zero obligation to continue after",
       "First lesson's always free, around 50 minutes, no pressure to enroll after that"
     ],
     "ro": [
-      "Fiecare familie primeste o lectie demo gratuita, in jur de 50 minute, inainte sa decida daca se inscrie, fara nicio obligatie",
+      "Fiecare copil primeste o lectie demo gratuita, in jur de 50 minute, inainte sa decida daca se inscrie, fara nicio obligatie",
       "Primesti o lectie demo gratuita mai intai, in jur de 50 minute, zero obligatie sa continui",
       "Prima lectie e mereu gratuita, in jur de 50 minute, fara presiune sa te inscrii dupa"
     ]
@@ -238,7 +260,10 @@
       "Momentan nu am sedinte drop-in, grupele merg saptamanal, insa demo-ul gratuit e un bun punct de start"
     ]
   },
-  "private_lessons": "REPLACE WITH PRIVATE LESSON INFORMATION",
+  "private_lessons": {
+    "en": "We focus on small group classes, but if you're interested in private lessons reach out to Septi directly at contact@sep7ro.com and he'll let you know what's available",
+    "ro": "Ne concentrăm pe clase în grupe mici, dar dacă ești interesat de lecții private contactează-l direct pe Septi la contact@sep7ro.com și îți va spune ce este disponibil"
+  },
   "group_size": {
     "en": [
       "Groups are kept small, often around 6 children, so every child gets attention",
@@ -251,7 +276,10 @@
       "Grupe mici, in jur de 6 copii de regula, ca nimeni sa nu se piarda in multime"
     ]
   },
-  "waitlist_policy": "REPLACE WITH WAITLIST INFORMATION",
+  "waitlist_policy": {
+    "en": "If a group is full, Septi can check other available slots or add you to the waitlist for the next opening. Best to mention it when he reaches out after your demo",
+    "ro": "Dacă o grupă este plină, Septi poate verifica alte sloturi disponibile sau te poate adăuga pe lista de așteptare pentru următoarea deschidere. Menționează asta când te contactează după demo"
+  },
   "class_availability_message": {
     "en": [
       "Spots can change, so let me check the current openings myself and confirm with you",
@@ -304,9 +332,9 @@
         "master": { "per_lesson": "19", "per_month": "247" }
       },
       "CAD": {
-        "standard": { "per_lesson": "27", "per_month": "108" },
-        "accelerated": { "per_lesson": "21", "per_month": "189" },
-        "master": { "per_lesson": "19", "per_month": "247" }
+        "standard": { "per_lesson": "37", "per_month": "148" },
+        "accelerated": { "per_lesson": "29", "per_month": "261" },
+        "master": { "per_lesson": "26", "per_month": "338" }
       },
       "RON": {
         "standard": { "per_lesson": "67", "per_month": "268" },
@@ -320,18 +348,19 @@
       "10% off if you enroll within the first 24 hours after the demo lesson",
       "10% off for the 3-month package",
       "10% off for each friend you refer; bring 7 friends and chess is free",
-      "25% sibling discount for a second enrolled child",
-      "50% twin discount for a second twin in the same class",
       "Missed sessions can always be made up (guaranteed)"
     ],
     "ro": [
       "10% reducere pentru inscrierea in primele 24h dupa lectia demo",
       "10% reducere pentru pachetul de 3 luni",
       "10% reducere pentru fiecare prieten adus; la 7 prieteni, sah gratuit",
-      "25% reducere pentru al doilea copil inscris din familie",
-      "50% reducere pentru al doilea geaman/geamana in aceeasi clasa",
       "Sedintele absentate se pot recupera, garantat"
-    ]
+    ],
+    "family_discounts": {
+      "note": "Only mention these if the parent brings up multiple children, siblings, or twins",
+      "sibling": "25% off for a second sibling enrolled in the school",
+      "twin": "50% off for a second twin enrolled in the same class"
+    }
   },
   "tech_setup_checklist": {
     "en": [

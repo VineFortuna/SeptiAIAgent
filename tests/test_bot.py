@@ -1,4 +1,4 @@
-from bot import BOOKING_NOT_FOUND, HANDOFF_VARIANTS, INTAKE_TRANSITION, REGISTRATION_FALLBACK
+from bot import BOOKING_NOT_FOUND, HANDOFF_VARIANTS, INTAKE_QUESTIONS
 
 
 def _all_variants(pool: dict[str, list[str]]) -> list[str]:
@@ -8,8 +8,13 @@ def _all_variants(pool: dict[str, list[str]]) -> list[str]:
 def test_registration_question_transitions_to_intake(bot) -> None:
     phone = "+14165550999"
     bot.reply("Hi", phone)  # greeting, lead in "greeted" stage
-    reply = bot.reply("Can I sign up for a class?", phone)  # skips rule answer, goes straight to country
-    assert any(reply[0].startswith(variant) for variant in _all_variants(INTAKE_TRANSITION))
+    reply = bot.reply("Can I sign up for a class?", phone)
+    # enrollment intent → lead is in intake, country question appears somewhere in the reply
+    assert bot.leads[phone]["stage"] == "intake_in_progress"
+    assert any(
+        INTAKE_QUESTIONS["country"]["en"] in r or INTAKE_QUESTIONS["country"]["ro"] in r
+        for r in reply
+    )
 
 
 def test_known_booking_is_returned(bot) -> None:

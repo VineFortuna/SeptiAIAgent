@@ -12,10 +12,15 @@
 - ACCELERAT: 9 lecții/lună → £11 / lecție (£99 / lună)
 - MASTER: 13 lecții/lună → £10 / lecție (£130 / lună)
 
-### USD / CAD — SUA și Canada
+### USD — SUA
 - STANDARD: 4 lecții/lună → $27 / lecție ($108 / lună)
 - ACCELERAT: 9 lecții/lună → $21 / lecție ($189 / lună)
 - MASTER: 13 lecții/lună → $19 / lecție ($247 / lună)
+
+### CAD — Canada
+- STANDARD: 4 lecții/lună → $37 / lecție ($148 / lună)
+- ACCELERAT: 9 lecții/lună → $29 / lecție ($261 / lună)
+- MASTER: 13 lecții/lună → $26 / lecție ($338 / lună)
 
 ### RON — România
 - STANDARD: 4 lecții/lună → 67 RON / lecție (268 RON / lună)
@@ -59,7 +64,8 @@ Notă: Sesiunile absente se pot RECUPERA, garantat.
 |---|---|
 | România | RON |
 | UK, Irlanda | GBP |
-| SUA, Canada | USD/CAD |
+| SUA | USD |
+| Canada | CAD |
 | Germania, Franța, Italia, Spania, Portugalia, Belgia, Olanda, Austria, Grecia, alte țări UE | EUR |
 | Altele / Necunoscut | întreabă |
 

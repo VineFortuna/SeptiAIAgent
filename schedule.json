@@ -1,0 +1,71 @@
+{
+  "_note": "Each class needs: id (unique), teacher, day, time (HH:MM 24h), timezone (IANA), level (beginner/intermediate/advanced), language (en/ro), max_capacity. Set active to false to hide a class without deleting it.",
+  "classes": [
+    {
+      "id": "cls_001",
+      "teacher": "Adam",
+      "day": "Monday",
+      "time": "17:00",
+      "timezone": "Europe/London",
+      "level": "beginner",
+      "language": "en",
+      "max_capacity": 6,
+      "active": true
+    },
+    {
+      "id": "cls_002",
+      "teacher": "Adam",
+      "day": "Wednesday",
+      "time": "17:00",
+      "timezone": "Europe/London",
+      "level": "beginner",
+      "language": "en",
+      "max_capacity": 6,
+      "active": true
+    },
+    {
+      "id": "cls_003",
+      "teacher": "Septi",
+      "day": "Tuesday",
+      "time": "18:00",
+      "timezone": "Europe/Bucharest",
+      "level": "beginner",
+      "language": "ro",
+      "max_capacity": 6,
+      "active": true
+    },
+    {
+      "id": "cls_004",
+      "teacher": "Septi",
+      "day": "Thursday",
+      "time": "18:00",
+      "timezone": "Europe/Bucharest",
+      "level": "intermediate",
+      "language": "ro",
+      "max_capacity": 6,
+      "active": true
+    },
+    {
+      "id": "cls_005",
+      "teacher": "Adam",
+      "day": "Saturday",
+      "time": "10:00",
+      "timezone": "Europe/London",
+      "level": "intermediate",
+      "language": "en",
+      "max_capacity": 6,
+      "active": true
+    },
+    {
+      "id": "cls_006",
+      "teacher": "Septi",
+      "day": "Saturday",
+      "time": "11:00",
+      "timezone": "Europe/Bucharest",
+      "level": "advanced",
+      "language": "ro",
+      "max_capacity": 6,
+      "active": true
+    }
+  ]
+}

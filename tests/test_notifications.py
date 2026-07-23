@@ -51,7 +51,7 @@ def test_intake_completion_triggers_injected_notifier(bot) -> None:
 
     phone = "+40712345678"
     bot.reply("Hi", phone)
-    bot.reply("I'm interested in chess classes", phone)  # triggers enrollment intent
+    bot.reply("I want to sign up", phone)  # triggers enrollment intent
     bot.reply("Romanian", phone)
     bot.reply("GMT+2", phone)
     bot.reply("7 years old", phone)
@@ -60,6 +60,7 @@ def test_intake_completion_triggers_injected_notifier(bot) -> None:
     bot.reply("After 3:30pm", phone)
     bot.reply("Exploratori", phone)
     bot.reply("No extra notes", phone)
+    bot.reply("TikTok", phone)  # referral_source → closes intake
 
     assert len(sent) == 1
     assert phone in sent[0]
