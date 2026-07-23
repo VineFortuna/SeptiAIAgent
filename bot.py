@@ -10,7 +10,10 @@ from threading import Lock
 from typing import Any, Callable
 from notifications import send_staff_notification, send_whatsapp_message
 
-BASE_DIR = Path(__file__).resolve().parent
+# In production set DATA_DIR to a persistent volume path (e.g. /data on Render).
+# Falls back to the project directory for local development.
+_data_dir_env = os.getenv("DATA_DIR", "").strip()
+BASE_DIR = Path(_data_dir_env) if _data_dir_env else Path(__file__).resolve().parent
 
 # Longest-prefix match against E.164 calling codes -> which pricing bucket to quote.
 # Starter list based on where the Sep7Ro diaspora audience is known to live; easy to
@@ -494,7 +497,7 @@ class ClassAssistant:
         self._conversation_history: dict[str, list[dict[str, str]]] = self._load_leads(self.history_path)
 
         self.api_key = os.getenv("OPENAI_API_KEY", "").strip()
-        self.model = os.getenv("OPENAI_MODEL", "gpt-5.5").strip()
+        self.model = os.getenv("OPENAI_MODEL", "gpt-4o").strip()
         self.ai_enabled = bool(self.api_key)
         self.client = None
 
