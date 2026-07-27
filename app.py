@@ -56,6 +56,7 @@ assistant = ClassAssistant()
 scheduler = BackgroundScheduler()
 scheduler.add_job(assistant.send_abandoned_intake_nudges, "interval", hours=1)
 scheduler.add_job(assistant.send_post_intake_nudges, "interval", hours=1)
+scheduler.add_job(assistant.send_thinking_it_over_nudges, "interval", hours=6)
 
 _debug_mode = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true")
 if not _debug_mode or os.environ.get("WERKZEUG_RUN_MAIN") == "true":

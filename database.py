@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,13 @@ def init_db() -> bool:
                     created_at   TEXT,
                     updated_at   TEXT,
                     data         JSONB NOT NULL DEFAULT '{}'
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS conversation_history (
+                    phone      TEXT PRIMARY KEY,
+                    history    JSONB NOT NULL DEFAULT '[]',
+                    updated_at TEXT
                 )
             """)
         conn.commit()
@@ -161,6 +169,70 @@ def delete_all_leads() -> bool:
         return True
     except Exception as exc:
         logger.warning("Could not delete leads: %s", exc)
+        return False
+    finally:
+        conn.close()
+
+
+def load_history(phone: str) -> list[dict[str, str]]:
+    """Load conversation history for a specific phone number. Returns empty list on failure."""
+    conn = get_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT history FROM conversation_history WHERE phone = %s", (phone,))
+            row = cur.fetchone()
+        if not row:
+            return []
+        history = row[0] if isinstance(row[0], list) else json.loads(row[0])
+        return history
+    except Exception as exc:
+        logger.warning("Could not load history for %s: %s", phone, exc)
+        return []
+    finally:
+        conn.close()
+
+
+def save_history(phone: str, history: list) -> bool:
+    """Upsert conversation history for a phone number. Returns True on success."""
+    conn = get_connection()
+    if not conn:
+        return False
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO conversation_history (phone, history, updated_at)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (phone) DO UPDATE SET
+                    history    = EXCLUDED.history,
+                    updated_at = EXCLUDED.updated_at
+                """,
+                (phone, json.dumps(history, ensure_ascii=False), now),
+            )
+        conn.commit()
+        return True
+    except Exception as exc:
+        logger.warning("Could not save history for %s: %s", phone, exc)
+        return False
+    finally:
+        conn.close()
+
+
+def delete_all_history() -> bool:
+    """Wipe all conversation history from the database. Returns True on success."""
+    conn = get_connection()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM conversation_history")
+        conn.commit()
+        return True
+    except Exception as exc:
+        logger.warning("Could not delete history: %s", exc)
         return False
     finally:
         conn.close()

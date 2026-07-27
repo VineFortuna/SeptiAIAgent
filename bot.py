@@ -364,8 +364,21 @@ ABANDONED_INTAKE_NUDGE: dict[str, list[str]] = {
     ],
     "ro": [
         "Bună, voiam să verific 🙂 Ai început formularul pentru lectia demo la Sep7Ro. Mai ești interesat/ă? Putem continua oricând",
-        "Salut! Ai început înregistrarea acum ceva timp dar nu ai terminat. Nicio grabă, voiam doar să mă asigur că nu ai pierdut firul",
+        "Salut! Ai început înregistrarea acum ceva timp dar nu ai terminat. Nică grabă, voiam doar să mă asigur că nu ai pierdut firul",
         "Bună! Erai la jumătatea formularului de înscriere Sep7Ro. Vrei să programezi o lectie demo gratuită pentru copilul tău? Putem continua oricând 🙂",
+    ],
+}
+
+THINKING_IT_OVER_NUDGE: dict[str, list[str]] = {
+    "en": [
+        "Hey! Just checking in 🙂 Did you get a chance to think it over? Happy to answer any questions if that helps",
+        "Hi, just wanted to follow up 🙂 Have you had a chance to think about the chess program? No rush at all, just here if you need anything",
+        "Hey, hope everything's going well 🙂 Just wanted to see if you'd had a chance to think about it and if there's anything I can help with",
+    ],
+    "ro": [
+        "Bună! Voiam să verific 🙂 Ai reușit să te gândești? Sunt aici dacă ai întrebări",
+        "Salut, voiam să dau un semn 🙂 Ai mai avut ocazia să te gândești la program? Nicio grabă, spune-mi dacă pot ajuta",
+        "Bună, sper că ești bine 🙂 Voiam să văd dacă ai avut ocazia să te gândești și dacă pot ajuta cu ceva",
     ],
 }
 
@@ -480,7 +493,6 @@ class ClassAssistant:
         self,
         leads_path: Path | None = None,
         notifier: Callable[[str], bool] | None = None,
-        history_path: Path | None = None,
     ) -> None:
         self.company_data = self._load_json("company_data.json")
         self.bookings = self._load_leads(BASE_DIR / "bookings.json")
@@ -504,9 +516,7 @@ class ClassAssistant:
         self.notifier = notifier or send_staff_notification
         self._last_pick: dict[Any, str] = {}
         self._leads_lock = Lock()
-
-        self.history_path = history_path or (BASE_DIR / "conversation_history.json")
-        self._conversation_history: dict[str, list[dict[str, str]]] = self._load_leads(self.history_path)
+        self._conversation_history: dict[str, list[dict[str, str]]] = {}
 
         self.api_key = os.getenv("OPENAI_API_KEY", "").strip()
         self.model = os.getenv("OPENAI_MODEL", "gpt-4o").strip()
@@ -544,8 +554,8 @@ class ClassAssistant:
             self.enrollments = {}
             if self._db_available:
                 db.delete_all_leads()
+                db.delete_all_history()
             self._save_leads()
-            self._save_history()
             self._save_enrollments()
 
     def send_abandoned_intake_nudges(self) -> None:
@@ -623,6 +633,41 @@ class ClassAssistant:
                     lead["post_intake_nudge_sent"] = True
                     self._save_leads()
 
+    def send_thinking_it_over_nudges(self) -> None:
+        """Send a one-time warm follow-up to parents who said 'let me think about it' 48+ hours ago."""
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+
+        with self._leads_lock:
+            leads_snapshot = list(self.leads.items())
+
+        for phone, lead in leads_snapshot:
+            if not lead.get("thinking_it_over"):
+                continue
+            if lead.get("thinking_it_over_nudge_sent"):
+                continue
+
+            thinking_since_str = lead.get("thinking_it_over_at")
+            if not thinking_since_str:
+                continue
+
+            try:
+                thinking_since = datetime.fromisoformat(thinking_since_str)
+            except Exception:
+                continue
+
+            if thinking_since.tzinfo is None:
+                thinking_since = thinking_since.replace(tzinfo=timezone.utc)
+
+            if thinking_since >= cutoff:
+                continue
+
+            lang = lead.get("lang", "en")
+            message = self._pick(THINKING_IT_OVER_NUDGE, lang)
+            if send_whatsapp_message(f"whatsapp:{phone}", message):
+                with self._leads_lock:
+                    lead["thinking_it_over_nudge_sent"] = True
+                    self._save_leads()
+
     def _save_leads(self) -> None:
         # Must be called while _leads_lock is held (directly or via _reply_locked).
         if self._db_available:
@@ -631,9 +676,15 @@ class ClassAssistant:
         with self.leads_path.open("w", encoding="utf-8") as file:
             json.dump(self.leads, file, ensure_ascii=False, indent=2)
 
-    def _save_history(self) -> None:
-        with self.history_path.open("w", encoding="utf-8") as file:
-            json.dump(self._conversation_history, file, ensure_ascii=False, indent=2)
+    def _append_to_history(self, phone: str, user_msg: str, assistant_msg: str) -> None:
+        history = self._conversation_history.setdefault(phone, [])
+        history.append({"role": "user", "content": user_msg})
+        history.append({"role": "assistant", "content": assistant_msg})
+        if len(history) > 20:
+            self._conversation_history[phone] = history[-20:]
+            history = self._conversation_history[phone]
+        if self._db_available:
+            db.save_history(phone, history)
 
     def _is_returning_lead(self, lead: dict) -> bool:
         """True if the lead's last activity was more than 2 hours ago."""
@@ -924,6 +975,14 @@ class ClassAssistant:
         ]
 
         self.notifier("\n".join(lines))
+
+    _THINKING_IT_OVER_PHRASES: tuple[str, ...] = (
+        "think about it", "i'll think", "let me think", "need some time",
+        "take some time", "not sure yet", "maybe later", "i'll consider",
+        "i'll let you know", "will let you know", "not ready",
+        "mă gândesc", "ma gandesc", "o să mă gândesc", "o sa ma gandesc",
+        "nu sunt sigur", "poate mai târziu", "poate mai tarziu",
+    )
 
     _GREETING_WORDS: frozenset[str] = frozenset({
         "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
@@ -2069,16 +2128,7 @@ class ClassAssistant:
         ):
             return self._pick(THANKS_REPLY, lang)
 
-        if self._contains_any(
-            text,
-            (
-                "think about it", "i'll think", "let me think", "need some time",
-                "take some time", "not sure yet", "maybe later", "i'll consider",
-                "i'll let you know", "will let you know", "not ready",
-                "mă gândesc", "ma gandesc", "o să mă gândesc", "o sa ma gandesc",
-                "nu sunt sigur", "poate mai târziu", "poate mai tarziu",
-            ),
-        ):
+        if self._contains_any(text, self._THINKING_IT_OVER_PHRASES):
             return self._pick(THINKING_IT_OVER, lang)
 
         if self._contains_any(
@@ -2753,6 +2803,10 @@ APPROVED INFORMATION:
 """.strip()
 
         phone = self._normalize_phone(sender_phone)
+        if phone not in self._conversation_history and self._db_available:
+            loaded = db.load_history(phone)
+            if loaded:
+                self._conversation_history[phone] = loaded
         prior = self._conversation_history.get(phone, [])
         input_messages = [*prior, {"role": "user", "content": message}]
 
@@ -2808,18 +2862,19 @@ APPROVED INFORMATION:
         phone = self._normalize_phone(sender_phone)
         lead = self._get_lead(phone)
 
+        # Any new message clears the "thinking it over" waiting state
+        if lead is not None and lead.get("thinking_it_over"):
+            lead["thinking_it_over"] = False
+            lead["updated_at"] = datetime.now(timezone.utc).isoformat()
+            self._save_leads()
+
         # Check intelligibility before doing anything — but not mid-intake,
         # where terse answers like "english" or "7" are expected and valid.
         in_intake = lead is not None and lead.get("stage") == "intake_in_progress"
         if not in_intake and not self._is_intelligible(message):
             lang = lead.get("lang", "ro") if lead else detect_language(message)
             unclear = self._pick(UNCLEAR_INPUT, lang)
-            history = self._conversation_history.setdefault(phone, [])
-            history.append({"role": "user", "content": message})
-            history.append({"role": "assistant", "content": unclear})
-            if len(history) > 20:
-                self._conversation_history[phone] = history[-20:]
-            self._save_history()
+            self._append_to_history(phone, message, unclear)
             return [unclear]
 
         # Active scheduling / rescheduling flow takes priority over all other routing.
@@ -2829,27 +2884,16 @@ APPROVED INFORMATION:
                 result = self._handle_scheduling_flow(message, phone, lead, lang)
                 if result is not None:
                     parts = result if isinstance(result, list) else [result]
-                    history_text = "\n\n".join(parts)
-                    history = self._conversation_history.setdefault(phone, [])
-                    history.append({"role": "user", "content": message})
-                    history.append({"role": "assistant", "content": history_text})
-                    if len(history) > 20:
-                        self._conversation_history[phone] = history[-20:]
-                    self._save_history()
+                    self._append_to_history(phone, message, "\n\n".join(parts))
                     return parts
             if "rescheduling_step" in lead:
                 result = self._handle_rescheduling_flow(message, phone, lead, lang)
                 if result is not None:
                     parts = result if isinstance(result, list) else [result]
-                    history_text = "\n\n".join(parts)
-                    history = self._conversation_history.setdefault(phone, [])
-                    history.append({"role": "user", "content": message})
-                    history.append({"role": "assistant", "content": history_text})
-                    if len(history) > 20:
-                        self._conversation_history[phone] = history[-20:]
-                    self._save_history()
+                    self._append_to_history(phone, message, "\n\n".join(parts))
                     return parts
 
+        _thinking_triggered = False
         intake_reply = self._handle_lead_intake(message, phone)
         if intake_reply is not None:
             parts = intake_reply if isinstance(intake_reply, list) else [intake_reply]
@@ -2857,19 +2901,23 @@ APPROVED INFORMATION:
             rule_reply = self._rule_based_reply(message, sender_phone)
             if rule_reply:
                 reply_text = rule_reply
+                _thinking_triggered = any(
+                    rule_reply in THINKING_IT_OVER.get(lng, []) for lng in THINKING_IT_OVER
+                )
             elif self.ai_enabled:
                 reply_text = self._ai_reply(message, sender_phone)
             else:
                 reply_text = self._handoff(detect_language(message))
-
             parts = [reply_text]
 
-        history_text = "\n\n".join(parts)
-        history = self._conversation_history.setdefault(phone, [])
-        history.append({"role": "user", "content": message})
-        history.append({"role": "assistant", "content": history_text})
-        if len(history) > 20:
-            self._conversation_history[phone] = history[-20:]
-        self._save_history()
+        # If the reply was a "thinking it over" acknowledgement, mark for 48h follow-up
+        if _thinking_triggered and lead is not None:
+            lead["thinking_it_over"] = True
+            lead["thinking_it_over_at"] = datetime.now(timezone.utc).isoformat()
+            lead["thinking_it_over_nudge_sent"] = False
+            lead["updated_at"] = datetime.now(timezone.utc).isoformat()
+            self._save_leads()
+
+        self._append_to_history(phone, message, "\n\n".join(parts))
 
         return parts

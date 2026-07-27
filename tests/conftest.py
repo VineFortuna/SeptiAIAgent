@@ -7,6 +7,5 @@ from bot import ClassAssistant
 def bot(tmp_path):
     return ClassAssistant(
         leads_path=tmp_path / "leads.json",
-        history_path=tmp_path / "conversation_history.json",
         notifier=lambda _: None,
     )
