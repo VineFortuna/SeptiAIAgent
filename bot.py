@@ -9,6 +9,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Callable
 from notifications import send_staff_notification, send_whatsapp_message
+import database as db
 
 # In production set DATA_DIR to a persistent volume path (e.g. /data on Render).
 # Falls back to the project directory for local development.
@@ -485,7 +486,18 @@ class ClassAssistant:
         self.bookings = self._load_leads(BASE_DIR / "bookings.json")
 
         self.leads_path = leads_path or (BASE_DIR / "leads.json")
-        self.leads = self._load_leads(self.leads_path)
+        self._db_available = db.init_db()
+        if self._db_available:
+            db_leads = db.load_leads()
+            if db_leads:
+                self.leads = db_leads
+            else:
+                # First run: migrate existing JSON leads into the database
+                self.leads = self._load_leads(self.leads_path)
+                if self.leads:
+                    db.save_all_leads(self.leads)
+        else:
+            self.leads = self._load_leads(self.leads_path)
         self.enrollments_path = BASE_DIR / "enrollments.json"
         self.enrollments: dict[str, list[dict[str, Any]]] = self._load_leads(self.enrollments_path)
         self.schedule: list[dict[str, Any]] = self._load_schedule()
@@ -530,6 +542,8 @@ class ClassAssistant:
             self.leads = {}
             self._conversation_history = {}
             self.enrollments = {}
+            if self._db_available:
+                db.delete_all_leads()
             self._save_leads()
             self._save_history()
             self._save_enrollments()
@@ -610,6 +624,10 @@ class ClassAssistant:
                     self._save_leads()
 
     def _save_leads(self) -> None:
+        # Must be called while _leads_lock is held (directly or via _reply_locked).
+        if self._db_available:
+            db.save_all_leads(self.leads)
+        # Always keep JSON in sync as a local backup.
         with self.leads_path.open("w", encoding="utf-8") as file:
             json.dump(self.leads, file, ensure_ascii=False, indent=2)
 
