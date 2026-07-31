@@ -40,8 +40,10 @@ def test_ai_reply_receives_prior_history(bot) -> None:
 
     phone = "+447911123456"
     bot.reply("Hi", phone)
-    bot.reply("I want to sign up", phone)  # enrollment signal → starts intake, asks country
-    bot.reply("UK", phone)                 # stores country, next intake question
+    bot.reply("I want to sign up", phone)  # enrollment signal → starts intake, asks name
+    bot.reply("John", phone)               # parent_name
+    bot.reply("Emma", phone)               # child_name
+    bot.reply("UK", phone)                 # stores country, sets currency_bucket=GBP
 
     bot.reply("How much does the standard package cost?", phone)
 

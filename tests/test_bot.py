@@ -12,7 +12,7 @@ def test_registration_question_transitions_to_intake(bot) -> None:
     # enrollment intent → lead is in intake, country question appears somewhere in the reply
     assert bot.leads[phone]["stage"] == "intake_in_progress"
     assert any(
-        INTAKE_QUESTIONS["country"]["en"] in r or INTAKE_QUESTIONS["country"]["ro"] in r
+        INTAKE_QUESTIONS["parent_name"]["en"] in r or INTAKE_QUESTIONS["parent_name"]["ro"] in r
         for r in reply
     )
 

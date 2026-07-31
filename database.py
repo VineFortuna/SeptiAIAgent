@@ -236,3 +236,37 @@ def delete_all_history() -> bool:
         return False
     finally:
         conn.close()
+
+
+def delete_lead(phone: str) -> bool:
+    """Delete a single lead by phone number. Returns True on success."""
+    conn = get_connection()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM leads WHERE phone = %s", (phone,))
+        conn.commit()
+        return True
+    except Exception as exc:
+        logger.warning("Could not delete lead %s: %s", phone, exc)
+        return False
+    finally:
+        conn.close()
+
+
+def delete_history(phone: str) -> bool:
+    """Delete conversation history for a single phone number. Returns True on success."""
+    conn = get_connection()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM conversation_history WHERE phone = %s", (phone,))
+        conn.commit()
+        return True
+    except Exception as exc:
+        logger.warning("Could not delete history for %s: %s", phone, exc)
+        return False
+    finally:
+        conn.close()

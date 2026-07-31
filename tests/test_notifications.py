@@ -38,6 +38,8 @@ def test_intake_completion_triggers_injected_notifier(bot) -> None:
     phone = "+40712345678"
     bot.reply("Hi", phone)
     bot.reply("I want to sign up", phone)
+    bot.reply("John", phone)
+    bot.reply("Emma", phone)
     bot.reply("Romanian", phone)
     bot.reply("GMT+2", phone)
     bot.reply("7 years old", phone)

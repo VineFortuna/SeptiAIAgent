@@ -37,7 +37,9 @@ def test_pricing_question_mentions_currency_for_uk_number(bot) -> None:
 
     phone = "+447911123456"
     bot.reply("Hi", phone)
-    bot.reply("I want to sign up", phone)  # enrollment signal → starts intake, asks country
+    bot.reply("I want to sign up", phone)  # enrollment signal → starts intake, asks name
+    bot.reply("John", phone)               # parent_name
+    bot.reply("Emma", phone)               # child_name
     bot.reply("UK", phone)                 # stores country, sets currency_bucket=GBP
     reply = bot.reply("How much does the standard package cost?", phone)
     assert "£" in reply[0] or "GBP" in reply[0]

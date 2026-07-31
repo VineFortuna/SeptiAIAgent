@@ -76,6 +76,8 @@ CONSTRAINED_FIELD_VALUES: dict[str, frozenset[str]] = {
 }
 
 REQUIRED_INTAKE_FIELDS: tuple[str, ...] = (
+    "parent_name",
+    "child_name",
     "country",
     "child_language_pref",
     "timezone",
@@ -89,6 +91,14 @@ REQUIRED_INTAKE_FIELDS: tuple[str, ...] = (
 )
 
 INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
+    "parent_name": {
+        "en": "What's your name?",
+        "ro": "Cum te numești?",
+    },
+    "child_name": {
+        "en": "And what's your child's name?",
+        "ro": "Și cum îl cheamă pe copil?",
+    },
     "country": {
         "en": "What country are you in?",
         "ro": "Din ce țară ești?",
@@ -187,14 +197,14 @@ UNCLEAR_INPUT: dict[str, list[str]] = {
 
 INTAKE_TRANSITION: dict[str, list[str]] = {
     "en": [
-        "Happy to help! What country are you in?",
-        "Of course! Before I get into that, what country are you based in?",
-        "Sure thing! Just one quick question, what country are you in?",
+        "Happy to help! What's your name?",
+        "Of course! Just a couple of quick questions — what's your name?",
+        "Sure thing! What's your name?",
     ],
     "ro": [
-        "Cu plăcere! Din ce țară ești?",
-        "Sigur! Înainte să îți răspund, din ce țară ești?",
-        "Clar! O singură întrebare rapidă, din ce țară ești?",
+        "Cu plăcere! Cum te numești?",
+        "Sigur! Câteva întrebări rapide — cum te numești?",
+        "Clar! Cum te numești?",
     ],
 }
 
@@ -557,6 +567,19 @@ class ClassAssistant:
                 db.delete_all_history()
             self._save_leads()
             self._save_enrollments()
+
+    def clear_lead(self, phone: str) -> bool:
+        """Remove one phone's lead and conversation history. Returns True if the lead existed."""
+        phone = self._normalize_phone(phone)
+        with self._leads_lock:
+            existed = phone in self.leads
+            self.leads.pop(phone, None)
+            self._conversation_history.pop(phone, None)
+            if self._db_available:
+                db.delete_lead(phone)
+                db.delete_history(phone)
+            self._save_leads()
+        return existed
 
     def send_abandoned_intake_nudges(self) -> None:
         """Send a one-time gentle follow-up to parents who went silent mid-intake for 24+ hours."""
@@ -935,6 +958,8 @@ class ClassAssistant:
             city_tz = self._lookup_city_timezone(lowered)
             if city_tz:
                 return city_tz
+        elif field in ("parent_name", "child_name"):
+            return text.strip().title()
 
         return text.strip()
 
@@ -961,6 +986,8 @@ class ClassAssistant:
         lines = [
             "New lead ready for follow-up 👋",
             f"WhatsApp: {phone} | {wa_link}",
+            f"Parent: {lead.get('parent_name') or '-'}",
+            f"Child: {lead.get('child_name') or '-'}",
             "",
             f"Country: {lead.get('country') or '-'}",
             f"Class language: {lang_display}",
@@ -1225,6 +1252,10 @@ class ClassAssistant:
 
         if text in self._NON_ANSWERS:
             return False
+
+        # Names are free-form but must pass the NON_ANSWERS check above
+        if field in ("parent_name", "child_name"):
+            return True
 
         if field == "child_age":
             return bool(re.search(r"\d", message))
@@ -1774,8 +1805,9 @@ class ClassAssistant:
                 any(sig in message.lower() for sig in self._ENROLLMENT_SIGNALS)
                 and any(w in message.lower() for w in ("also", "too", "as well", "another", "second", "si", "și", "alt", "și"))
             ):
+                existing_parent_name = lead.get("parent_name")
                 lead["stage"] = "intake_in_progress"
-                lead["collected_fields"] = []
+                lead["collected_fields"] = ["parent_name"] if existing_parent_name else []
                 lead["nudge_sent"] = False
                 lead["post_intake_nudge_sent"] = False
                 lead["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -1784,7 +1816,8 @@ class ClassAssistant:
                     restart_msg = "Sigur, hai să completăm datele pentru cel de-al doilea copil 🙂"
                 else:
                     restart_msg = "Of course, let's go through the details for your second child 🙂"
-                return [restart_msg, INTAKE_QUESTIONS["country"][lang]]
+                first_q = "child_name" if existing_parent_name else "parent_name"
+                return [restart_msg, INTAKE_QUESTIONS[first_q][lang]]
 
             # Scheduling a new class
             if any(sig in message.lower() for sig in self._SCHEDULING_SIGNALS) or any(
@@ -1894,7 +1927,7 @@ class ClassAssistant:
             # question as a separate follow-up message so nothing gets ignored.
             if self.ai_enabled:
                 ai_response = self._ai_reply(message, phone, suppress_intake_questions=True)
-                return [ai_response, INTAKE_QUESTIONS["country"][lang]]
+                return [ai_response, INTAKE_QUESTIONS["parent_name"][lang]]
 
             # No AI available — fall back to the hardcoded transition.
             return self._pick(INTAKE_TRANSITION, lang)

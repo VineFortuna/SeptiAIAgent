@@ -219,6 +219,19 @@ def reset_state() -> Response:
     return jsonify({"status": "ok", "message": "All leads and history cleared"})
 
 
+@app.post("/reset-lead/<path:phone>")
+@require_admin_key
+def reset_lead(phone: str) -> Response:
+    """Remove one phone number's lead and chat history without touching anyone else."""
+    phone = phone.replace("whatsapp:", "").strip()
+    if not phone.startswith("+"):
+        phone = f"+{phone}"
+    existed = assistant.clear_lead(phone)
+    if not existed:
+        return jsonify({"error": f"No lead found for {phone}"}), 404
+    return jsonify({"status": "ok", "phone": phone})
+
+
 @app.post("/test-message")
 @require_admin_key
 def test_message() -> Response:

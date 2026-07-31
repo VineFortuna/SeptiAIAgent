@@ -73,22 +73,22 @@ def test_greeting_mid_intake_repeats_pending_question(bot) -> None:
     phone = "+40712345678"
     bot.reply("Hi", phone)
     bot.reply("I want to sign up", phone)  # greeted → starts intake
-    # Saying hello mid-intake should warmly re-ask the country question in one message
+    # Saying hello mid-intake should warmly re-ask the parent_name question in one message
     reply = bot.reply("Hello", phone)
-    assert any(INTAKE_QUESTIONS["country"]["en"] in r or INTAKE_QUESTIONS["country"]["ro"] in r for r in reply)
+    assert any(INTAKE_QUESTIONS["parent_name"]["en"] in r or INTAKE_QUESTIONS["parent_name"]["ro"] in r for r in reply)
 
 
 def test_faq_question_mid_intake_does_not_consume_pending_field(bot) -> None:
     phone = "+40712345678"
     bot.reply("Hi", phone)
     bot.reply("I want to sign up", phone)  # greeted → starts intake
-    bot.reply("Romania", phone)             # stores country, pending: child_language_pref
+    bot.reply("Anna", phone)               # parent_name stored, pending: child_name
     reply = bot.reply("Can I speak to a staff member?", phone)
 
     lead = bot.leads[phone]
-    # FAQ answer is returned; pending field is NOT consumed by the off-topic message
+    # FAQ answer is returned; pending field (child_name) is NOT consumed by the off-topic message
     assert reply[0] in _all_variants(HANDOFF_VARIANTS)
-    assert "child_language_pref" not in lead["collected_fields"]
+    assert "child_name" not in lead["collected_fields"]
 
 
 def test_empty_message_during_intake_does_not_crash_or_lose_progress(bot) -> None:
@@ -106,19 +106,21 @@ def test_gibberish_answer_is_stored_verbatim_and_advances_intake(bot) -> None:
     phone = "+40712345678"
     bot.reply("Hi", phone)
     bot.reply("I want to sign up", phone)  # greeted → starts intake
-    bot.reply("asdkjfh qwerty zzz", phone)   # stored as country verbatim
+    bot.reply("asdkjfh qwerty zzz", phone)   # stored as parent_name verbatim (title-cased)
 
     lead = bot.leads[phone]
-    assert lead["country"] == "asdkjfh qwerty zzz"
-    assert "country" in lead["collected_fields"]
+    assert lead["parent_name"] == "Asdkjfh Qwerty Zzz"
+    assert "parent_name" in lead["collected_fields"]
 
 
 def test_lead_resumes_intake_after_gap_without_restarting(bot) -> None:
     phone = "+40712345678"
     bot.reply("Hi", phone)
     bot.reply("I want to sign up", phone)  # greeted → starts intake
-    bot.reply("Romanian", phone)             # country + child_language_pref (multi-field)
-    bot.reply("GMT+2", phone)               # timezone
+    bot.reply("John", phone)               # parent_name
+    bot.reply("Emma", phone)               # child_name
+    bot.reply("Romanian", phone)           # country + child_language_pref (multi-field)
+    bot.reply("GMT+2", phone)              # timezone
 
     fields_before = list(bot.leads[phone]["collected_fields"])
 
