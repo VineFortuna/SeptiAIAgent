@@ -27,7 +27,7 @@ def send_whatsapp_message(to: str, body: str, **_kwargs) -> bool:
     if not recipient:
         return False
 
-    url = f"https://graph.facebook.com/v19.0/{phone_number_id}/messages"
+    url = f"https://graph.facebook.com/v21.0/{phone_number_id}/messages"
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
