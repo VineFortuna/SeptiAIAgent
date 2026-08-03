@@ -2942,7 +2942,8 @@ APPROVED INFORMATION:
                 answer = answer[:-1]
             return answer or self._handoff(lang)
 
-        except Exception:
+        except Exception as exc:
+            print(f"[AI ERROR] {type(exc).__name__}: {exc}")
             return self._handoff(lang)
 
     def _is_intelligible(self, message: str) -> bool:
