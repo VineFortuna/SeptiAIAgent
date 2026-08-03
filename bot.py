@@ -2231,6 +2231,8 @@ class ClassAssistant:
                 "puteti sa mi dati", "puteți să îmi dați", "mai multe detalii",
             ),
         ):
+            if self.ai_enabled:
+                return None
             paragraphs = self.company_data.get("program_overview", {}).get(lang, [])
             if paragraphs:
                 return "\n\n".join(paragraphs)
@@ -2280,6 +2282,10 @@ class ClassAssistant:
             ),
         ):
             return self._booking_reply(sender_phone, lang)
+
+        # All remaining FAQ handlers are informational — let AI answer when enabled.
+        if self.ai_enabled:
+            return None
 
         if self._contains_any(
             text,
@@ -2904,6 +2910,7 @@ Rules:
 - Never say you didn't understand a question that is clearly intelligible.
   If you're unsure about a Sep7Ro-specific detail, answer with what you
   do know and bridge to the next step naturally.
+- When the user sends a casual conversational message ('ok', 'cool', 'thats cool', 'nice', 'got it', 'sounds good', 'interesting', 'makes sense', 'sure', 'awesome' etc.), respond naturally and warmly — keep it brief, then invite them to ask more or get started. Never deflect casual small talk to Septi.
 - Only use the handoff message for: complaints, refund requests,
   emergencies, or explicit requests to speak to a real person.
   Respond exactly with:
