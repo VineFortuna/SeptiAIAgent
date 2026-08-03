@@ -503,11 +503,14 @@ def detect_language(text: str) -> str:
     if ro_hits > en_hits:
         return "ro"
 
-    # Tie (including 0 vs 0): short/simple messages default to English so that
-    # casual English like "ok", "cool", "nice", "sounds good", "thats cool"
-    # are not misclassified as Romanian.
+    # 0 vs 0 tie — no markers at all → always English (Romanian text will
+    # always have at least one Romanian word or diacritic).
+    if ro_hits == 0 and en_hits == 0:
+        return "en"
+
+    # Tied non-zero: short messages lean English, longer ones lean Romanian.
     words = lowered.split()
-    if len(lowered.strip()) < 15 or len(words) < 3:
+    if len(lowered.strip()) <= 20 or len(words) <= 4:
         return "en"
 
     return "ro"
@@ -2975,6 +2978,7 @@ APPROVED INFORMATION:
             return self._reply_locked(message, sender_phone)
 
     def _reply_locked(self, message: str, sender_phone: str) -> list[str]:
+        print(f"[DEBUG] ai_enabled={self.ai_enabled} api_key_set={bool(self.api_key)}")
         phone = self._normalize_phone(sender_phone)
         lead = self._get_lead(phone)
 
