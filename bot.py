@@ -1853,6 +1853,8 @@ class ClassAssistant:
             self._save_leads()
             # Pure greeting → say hi and wait to see what they need
             if message.lower().strip() in self._GREETING_WORDS:
+                if self.ai_enabled:
+                    return self._ai_reply(message, phone)
                 return self._pick(GREETING_INTRO, lang)
             # Substantive first message → fall through to greeted-stage logic below
             # so we actually respond to what they said instead of ignoring it
@@ -1940,6 +1942,14 @@ class ClassAssistant:
             pending_field = self._next_missing_field(lead)
             if pending_field:
                 q = INTAKE_QUESTIONS[pending_field][lang]
+                if self.ai_enabled:
+                    return [self._ai_reply(message, phone, intake_context={
+                        "is_greeting": True,
+                        "is_returning": self._is_returning_lead(lead),
+                        "fields_done": len(lead.get("collected_fields", [])),
+                        "next_field": pending_field,
+                        "next_question": q,
+                    })]
                 if self._is_returning_lead(lead):
                     fields_done = len(lead.get("collected_fields", []))
                     if lang == "en":
@@ -2075,12 +2085,20 @@ class ClassAssistant:
 
         if next_field is not None:
             self._save_leads()
+            if self.ai_enabled:
+                return [self._ai_reply(message, phone, intake_context={
+                    "just_collected": pending_field,
+                    "next_field": next_field,
+                    "next_question": INTAKE_QUESTIONS[next_field][lang],
+                })]
             return [self._pick(INTAKE_ACK, lang), INTAKE_QUESTIONS[next_field][lang]]
 
         lead["stage"] = "faq_only"
         lead["handed_off"] = True
         self._save_leads()
         self._maybe_notify_staff(phone, lead)
+        if self.ai_enabled:
+            return self._ai_reply(message, phone, intake_context={"is_closing": True})
         return self._pick(CLOSING_MESSAGE, lang)
 
     def _list_classes(self, lang: str = "ro") -> str:
@@ -2153,15 +2171,21 @@ class ClassAssistant:
         }
 
         if text in greetings:
+            if self.ai_enabled:
+                return None
             return self._pick(GREETING_REPLY, lang)
 
         if self._contains_any(
             text,
             ("thank you", "thanks", "thx", "multumesc", "mulțumesc", "mersi"),
         ):
+            if self.ai_enabled:
+                return None
             return self._pick(THANKS_REPLY, lang)
 
         if self._contains_any(text, self._THINKING_IT_OVER_PHRASES):
+            if self.ai_enabled:
+                return None
             return self._pick(THINKING_IT_OVER, lang)
 
         if self._contains_any(
@@ -2175,6 +2199,8 @@ class ClassAssistant:
                 "ajutor",
             ),
         ):
+            if self.ai_enabled:
+                return None
             return self._pick(HELP_REPLY, lang)
 
         if self._contains_any(
@@ -2663,7 +2689,7 @@ class ClassAssistant:
 
         return None
 
-    def _ai_reply(self, message: str, sender_phone: str, *, suppress_intake_questions: bool = False) -> str:
+    def _ai_reply(self, message: str, sender_phone: str, *, suppress_intake_questions: bool = False, intake_context: dict | None = None) -> str:
         assert self.client is not None
 
         lang = detect_language(message)
@@ -2745,9 +2771,43 @@ class ClassAssistant:
                 "automatically right after your message. Just focus on answering what they asked.\n"
             )
 
+        intake_context_note = ""
+        if intake_context:
+            if intake_context.get("is_closing"):
+                intake_context_note = (
+                    "\nTask: The parent just finished providing all their enrollment information. "
+                    "Write a warm, brief closing message (1-2 sentences). Confirm everything is in "
+                    "and that Septi will reach out within 24 hours to schedule the free demo lesson. "
+                    "No questions at the end.\n"
+                )
+            elif intake_context.get("is_greeting"):
+                next_q = intake_context.get("next_question", "")
+                if intake_context.get("is_returning"):
+                    fields_done = intake_context.get("fields_done", 0)
+                    intake_context_note = (
+                        f"\nTask: The parent is returning after a gap (they had answered "
+                        f"{fields_done} enrollment question{'s' if fields_done != 1 else ''} already). "
+                        f"Greet them warmly, acknowledge they're picking up where they left off, "
+                        f"and ask: {next_q}\n"
+                    )
+                else:
+                    intake_context_note = (
+                        f"\nTask: The parent just said hello while you're mid-intake. "
+                        f"Respond warmly and ask: {next_q}\n"
+                    )
+            elif intake_context.get("next_field"):
+                just_collected = intake_context.get("just_collected", "").replace("_", " ")
+                next_q = intake_context.get("next_question", "")
+                intake_context_note = (
+                    f"\nTask: You just received the parent's {just_collected}. "
+                    f"Acknowledge it briefly and naturally (vary it — don't always say 'Got it' or 'Perfect'), "
+                    f"then ask: {next_q} "
+                    f"Keep the whole response to 1-2 sentences. No lists.\n"
+                )
+
         instructions = f"""
 Your name is {assistant_name}. You are Septi's assistant at {self.company_data.get("business_name", "the business")}, messaging parents on WhatsApp on Septi's behalf.
-{intake_done_note}{intake_starting_note}
+{intake_done_note}{intake_starting_note}{intake_context_note}
 Your personality: warm, friendly, and straight to the point. You genuinely care about helping families find the right fit for their child. You know the school well and answer with quiet confidence, not corporate polish. You never hard-sell, you just share what's real and let parents decide.
 
 Always read the full message before replying. If the parent gives you multiple pieces of information in one message (e.g. their country AND a question), use all of it — never ask for something they already told you in the same message.
@@ -2926,7 +2986,6 @@ APPROVED INFORMATION:
                     self._append_to_history(phone, message, "\n\n".join(parts))
                     return parts
 
-        _thinking_triggered = False
         intake_reply = self._handle_lead_intake(message, phone)
         if intake_reply is not None:
             parts = intake_reply if isinstance(intake_reply, list) else [intake_reply]
@@ -2934,14 +2993,17 @@ APPROVED INFORMATION:
             rule_reply = self._rule_based_reply(message, sender_phone)
             if rule_reply:
                 reply_text = rule_reply
-                _thinking_triggered = any(
-                    rule_reply in THINKING_IT_OVER.get(lng, []) for lng in THINKING_IT_OVER
-                )
             elif self.ai_enabled:
                 reply_text = self._ai_reply(message, sender_phone)
             else:
                 reply_text = self._handoff(detect_language(message))
             parts = [reply_text]
+
+        _thinking_triggered = (
+            lead is not None
+            and lead.get("stage") != "intake_in_progress"
+            and self._contains_any(message.lower(), self._THINKING_IT_OVER_PHRASES)
+        )
 
         # If the reply was a "thinking it over" acknowledgement, mark for 48h follow-up
         if _thinking_triggered and lead is not None:
