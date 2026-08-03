@@ -485,8 +485,11 @@ EN_WORD_MARKERS: tuple[str, ...] = (
 
 def detect_language(text: str) -> str:
     """Light heuristic: Romanian diacritics win outright, otherwise whichever
-    language's whole-word markers appear more often, defaulting to Romanian
-    on a tie (primary audience)."""
+    language's whole-word markers appear more often. On a tie, short or simple
+    messages (under 15 characters or fewer than 3 words) default to English to
+    avoid misclassifying casual English phrases like 'ok', 'cool', 'sounds good',
+    or 'thats cool' as Romanian. Longer ambiguous messages keep Romanian as the
+    default (primary audience)."""
     lowered = text.lower()
 
     if any(char in lowered for char in "ăâîșț"):
@@ -495,7 +498,19 @@ def detect_language(text: str) -> str:
     ro_hits = sum(1 for marker in RO_WORD_MARKERS if re.search(rf"\b{marker}\b", lowered))
     en_hits = sum(1 for marker in EN_WORD_MARKERS if re.search(rf"\b{marker}\b", lowered))
 
-    return "en" if en_hits > ro_hits else "ro"
+    if en_hits > ro_hits:
+        return "en"
+    if ro_hits > en_hits:
+        return "ro"
+
+    # Tie (including 0 vs 0): short/simple messages default to English so that
+    # casual English like "ok", "cool", "nice", "sounds good", "thats cool"
+    # are not misclassified as Romanian.
+    words = lowered.split()
+    if len(lowered.strip()) < 15 or len(words) < 3:
+        return "en"
+
+    return "ro"
 
 
 class ClassAssistant:
@@ -2831,8 +2846,11 @@ Sound like a real person texting, not a corporate bot:
 Use the approved information below as your primary source for Sep7Ro-specific details.
 
 Rules:
-- Always reply in whichever language the customer is writing in, Romanian or
-  English. If unsure, default to Romanian.
+- Always reply in the exact same language as the user's most recent message,
+  Romanian or English. Short casual English phrases like "ok", "cool", "nice",
+  "sounds good", "that's cool", "thats cool" are English — always reply in
+  English for these. Only default to Romanian if the message contains no
+  recognizable language at all (a lone emoji, a number, or similar).
 - The content and level of detail in your answer must be identical regardless
   of language. If you would mention something in Romanian, mention it in English
   too, and vice versa. Only the language changes, never the information.
@@ -2960,6 +2978,16 @@ APPROVED INFORMATION:
             lead["thinking_it_over"] = False
             lead["updated_at"] = datetime.now(timezone.utc).isoformat()
             self._save_leads()
+
+        # Keep the stored language in sync with the user's current message so the
+        # bot follows if they switch languages (e.g. from Romanian to English).
+        # Skip during active intake so terse answers like "Ana" or "7" don't flip it.
+        if lead is not None and lead.get("stage") != "intake_in_progress":
+            current_lang = detect_language(message)
+            if current_lang != lead.get("lang"):
+                lead["lang"] = current_lang
+                lead["updated_at"] = datetime.now(timezone.utc).isoformat()
+                self._save_leads()
 
         # Check intelligibility before doing anything — but not mid-intake,
         # where terse answers like "english" or "7" are expected and valid.
