@@ -88,6 +88,7 @@ REQUIRED_INTAKE_FIELDS: tuple[str, ...] = (
     "group_pref",
     "extra_notes",
     "referral_source",
+    "demo_interest",
 )
 
 INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
@@ -136,8 +137,12 @@ INTAKE_QUESTIONS: dict[str, dict[str, str]] = {
         "ro": "Mai este ceva ce ați vrea să știe Septi înainte să vă contacteze?",
     },
     "referral_source": {
-        "en": "Last one 🙂 How did you hear about Sep7Ro?",
-        "ro": "Ultima întrebare 🙂 Cum ai aflat de Sep7Ro?",
+        "en": "Almost done! How did you hear about Sep7Ro?",
+        "ro": "Aproape gata! Cum ai aflat de Sep7Ro?",
+    },
+    "demo_interest": {
+        "en": "Last one 🙂 Would your child be up for a free 50-minute demo lesson to try it out?",
+        "ro": "Ultima întrebare 🙂 Ar vrea copilul să încerce o lecție demo gratuită de 50 de minute?",
     },
 }
 
@@ -933,6 +938,22 @@ class ClassAssistant:
                 return city_tz
         elif field in ("parent_name", "child_name"):
             return text.strip().title()
+        elif field == "demo_interest":
+            yes_words = (
+                "yes", "yeah", "yep", "yup", "sure", "absolutely", "definitely",
+                "of course", "sounds good", "why not", "love to", "would love",
+                "da", "sigur", "desigur", "bineinteles", "bineînțeles",
+                "cu siguranta", "cu siguranță", "vreau", "vrem",
+            )
+            no_words = (
+                "no", "nope", "not interested", "not now", "not yet",
+                "maybe later", "maybe another time", "skip", "pass",
+                "nu", "nu vreau", "nu acum", "poate mai tarziu", "poate mai târziu",
+            )
+            if any(w in lowered for w in yes_words):
+                return "yes"
+            if any(w in lowered for w in no_words):
+                return "no"
 
         return text.strip()
 
@@ -1221,6 +1242,10 @@ class ClassAssistant:
         if field == "group_pref":
             normalized = self._normalize_intake_answer(field, message)
             return normalized in CONSTRAINED_FIELD_VALUES[field]
+
+        if field == "demo_interest":
+            normalized = self._normalize_intake_answer("demo_interest", message)
+            return normalized in ("yes", "no")
 
         return True
 
@@ -1595,7 +1620,7 @@ class ClassAssistant:
             message.strip().endswith("?")
             or any(msg_lower.startswith(w) for w in _question_starters)
         )
-        if pending_field not in ("extra_notes", "referral_source") and looks_like_question and (
+        if pending_field not in ("extra_notes", "referral_source", "demo_interest") and looks_like_question and (
             self._rule_based_reply(message, phone) or self._mentions_ai_topic(message)
         ):
             return None
@@ -1682,12 +1707,19 @@ class ClassAssistant:
             return [self._pick(INTAKE_ACK, lang), INTAKE_QUESTIONS[next_field][lang]]
 
         lead["stage"] = "faq_only"
-        lead["handed_off"] = True
+        demo_yes = lead.get("demo_interest") == "yes"
+        lead["handed_off"] = demo_yes
         self._save_leads()
-        self._maybe_notify_staff(phone, lead)
+        if demo_yes:
+            self._maybe_notify_staff(phone, lead)
         if self.ai_enabled:
-            return self._ai_reply(message, phone, intake_context={"is_closing": True})
-        return self._pick(CLOSING_MESSAGE, lang)
+            return self._ai_reply(message, phone, intake_context={"is_closing": True, "demo_interested": demo_yes})
+        if demo_yes:
+            return self._pick(CLOSING_MESSAGE, lang)
+        # Declined the demo — close warmly without Septi notification
+        if lang == "en":
+            return "No worries at all 🙂 If you ever change your mind, we're always here whenever you're ready"
+        return "Nicio problemă 🙂 Dacă te răzgândești, suntem mereu aici oricând ești gata"
 
     def _list_classes(self, lang: str = "ro") -> str:
         groups = self.company_data.get("groups", {})
@@ -2336,22 +2368,30 @@ class ClassAssistant:
         intake_starting_note = ""
         if suppress_intake_questions:
             intake_starting_note = (
-                "\nContext: This parent is starting the enrollment process right now. "
-                "Answer whatever they asked about the program warmly and naturally. "
-                "Do NOT ask them for their country, timezone, child's age, or any other "
-                "personal details — a separate follow-up question will collect that "
-                "automatically right after your message. Just focus on answering what they asked.\n"
+                "\nTask: The parent just expressed interest in enrolling their child. "
+                "Write a warm, brief welcome (1-2 sentences max). Acknowledge that you'll "
+                "collect a few details to get them set up. Do NOT mention the demo lesson, "
+                "do NOT describe the enrollment process, do NOT ask any questions — "
+                "a separate question will follow automatically right after your message.\n"
             )
 
         intake_context_note = ""
         if intake_context:
             if intake_context.get("is_closing"):
-                intake_context_note = (
-                    "\nTask: The parent just finished providing all their enrollment information. "
-                    "Write a warm, brief closing message (1-2 sentences). Confirm everything is in "
-                    "and that Septi will reach out within 24 hours to schedule the free demo lesson. "
-                    "No questions at the end.\n"
-                )
+                if intake_context.get("demo_interested"):
+                    intake_context_note = (
+                        "\nTask: The parent just finished providing all their enrollment info and said yes to the demo lesson. "
+                        "Write a warm, brief closing message (1-2 sentences). Confirm everything is in "
+                        "and that Septi will reach out within 24 hours to schedule the free demo. "
+                        "No questions at the end.\n"
+                    )
+                else:
+                    intake_context_note = (
+                        "\nTask: The parent just finished providing their info but declined the free demo lesson. "
+                        "Write a warm, brief closing message (1-2 sentences). Thank them sincerely, "
+                        "let them know the door is always open if they change their mind. "
+                        "No questions at the end.\n"
+                    )
             elif intake_context.get("is_greeting"):
                 next_q = intake_context.get("next_question", "")
                 if intake_context.get("is_returning"):

@@ -55,7 +55,8 @@ def test_intake_completes_and_marks_handed_off(bot) -> None:
     bot.reply("After 3:30pm", phone)
     bot.reply("Exploratori", phone)
     bot.reply("Nothing else, thanks!", phone)
-    final_reply = bot.reply("TikTok", phone)  # referral_source → closes intake
+    bot.reply("TikTok", phone)               # referral_source → asks demo_interest
+    final_reply = bot.reply("yes", phone)    # demo_interest → closes intake
 
     lead = bot.leads[phone]
     assert lead["stage"] == "faq_only"
@@ -137,7 +138,8 @@ def test_handed_off_lead_does_not_restart_intake_later(bot) -> None:
     bot.reply("After 3:30pm", phone)
     bot.reply("Exploratori", phone)
     bot.reply("No extra notes", phone)
-    bot.reply("TikTok", phone)  # referral_source → closes intake
+    bot.reply("TikTok", phone)   # referral_source → asks demo_interest
+    bot.reply("yes", phone)      # demo_interest → closes intake
 
     # Lead is now handed off. A later message should be a normal FAQ, not restart intake.
     reply = bot.reply("Can I speak to a staff member?", phone)

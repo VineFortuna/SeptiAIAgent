@@ -49,6 +49,7 @@ def test_intake_completion_triggers_injected_notifier(bot) -> None:
     bot.reply("Exploratori", phone)
     bot.reply("No extra notes", phone)
     bot.reply("TikTok", phone)
+    bot.reply("yes", phone)   # demo_interest → triggers notification
 
     assert len(sent) == 1
     assert phone in sent[0]
