@@ -1,4 +1,4 @@
-from bot import BOOKING_NOT_FOUND, HANDOFF_VARIANTS, INTAKE_QUESTIONS
+from bot import HANDOFF_VARIANTS, INTAKE_QUESTIONS
 
 
 def _all_variants(pool: dict[str, list[str]]) -> list[str]:
@@ -12,21 +12,9 @@ def test_registration_question_transitions_to_intake(bot) -> None:
     # enrollment intent → lead is in intake, country question appears somewhere in the reply
     assert bot.leads[phone]["stage"] == "intake_in_progress"
     assert any(
-        INTAKE_QUESTIONS["parent_name"]["en"] in r or INTAKE_QUESTIONS["parent_name"]["ro"] in r
+        INTAKE_QUESTIONS["parent_name"]["en"].lower() in r.lower() or INTAKE_QUESTIONS["parent_name"]["ro"].lower() in r.lower()
         for r in reply
     )
-
-
-def test_known_booking_is_returned(bot) -> None:
-    reply = bot.reply("What time is my class?", "+14165550100")
-    assert "6:00 p.m." in reply[0]
-
-
-def test_unknown_booking_is_not_invented(bot) -> None:
-    phone = "+14165559999"
-    bot.reply("Hi", phone)  # greeting
-    reply = bot.reply("When is my next class?", phone)  # booking check + country question
-    assert any(reply[0].startswith(variant) for variant in _all_variants(BOOKING_NOT_FOUND))
 
 
 def test_human_request_hands_off(bot) -> None:

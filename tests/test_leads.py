@@ -63,12 +63,6 @@ def test_intake_completes_and_marks_handed_off(bot) -> None:
     assert final_reply[0] in _all_variants(CLOSING_MESSAGE)
 
 
-def test_known_booking_skips_intake(bot) -> None:
-    phone = "+14165550100"
-    bot.reply("What time is my class?", phone)
-    assert phone not in bot.leads
-
-
 def test_greeting_mid_intake_repeats_pending_question(bot) -> None:
     phone = "+40712345678"
     bot.reply("Hi", phone)

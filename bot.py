@@ -311,30 +311,6 @@ REGISTRATION_LINK_REPLY: dict[str, list[str]] = {
     ],
 }
 
-BOOKING_FOUND: dict[str, list[str]] = {
-    "en": [
-        "Your next {class_name} is on {date} at {time} 🙂",
-        "You're booked for {class_name} on {date} at {time}",
-    ],
-    "ro": [
-        "Următoarea ta lecție, {class_name}, e pe {date} la ora {time} 🙂",
-        "Ești programat la {class_name} pe {date}, ora {time}",
-    ],
-}
-
-BOOKING_NOT_FOUND: dict[str, list[str]] = {
-    "en": [
-        "Hmm, not seeing a booking on this number, what name did you book under?",
-        "Can't match this number to a booking, send me the name you used and I'll find it",
-        "Don't see anything under this number 🤔 what name should I look for?",
-    ],
-    "ro": [
-        "Hmm, nu găsesc o rezervare pe acest număr, ce nume ai folosit?",
-        "Nu văd nimic pe numărul ăsta, trimite-mi numele de pe rezervare",
-        "Nu apare nimic pe acest număr 🤔 ce nume să caut?",
-    ],
-}
-
 CURRENCY_DEFAULT_NOTE = {
     "en": "I'll quote prices in EUR, let me know if you'd like a different currency",
     "ro": "Voi da prețurile în EUR, spune-mi dacă preferi altă moneda",
@@ -523,7 +499,6 @@ class ClassAssistant:
         notifier: Callable[[str], bool] | None = None,
     ) -> None:
         self.company_data = self._load_json("company_data.json")
-        self.bookings = self._load_leads(BASE_DIR / "bookings.json")
 
         self.leads_path = leads_path or (BASE_DIR / "leads.json")
         self._db_available = db.init_db()
@@ -863,26 +838,6 @@ class ClassAssistant:
 
         return self._pick(REGISTRATION_LINK_REPLY, lang).format(link=link)
 
-    def _booking_reply(self, sender_phone: str, lang: str = "ro") -> str:
-        phone = self._normalize_phone(sender_phone)
-        booking = self.bookings.get(phone)
-
-        if not booking:
-            return self._pick(BOOKING_NOT_FOUND, lang)
-
-        class_name = booking.get("class_name", "class")
-        date = booking.get("date", "the scheduled date")
-        time = booking.get("time", "the scheduled time")
-
-        reply = self._pick(BOOKING_FOUND, lang).format(class_name=class_name, date=date, time=time)
-
-        location = booking.get("location")
-        if location:
-            suffix = ", la {location}" if lang == "ro" else ", at {location}"
-            reply += suffix.format(location=location)
-
-        return reply
-
     def _bilingual(self, value: Any, lang: str, pick_one: bool = False) -> str | None:
         if not isinstance(value, dict):
             return None
@@ -1089,25 +1044,6 @@ class ClassAssistant:
         # Romanian
         "înscri", "inscri",
         "înregistra", "inregistra",
-    )
-
-    _SCHEDULING_SIGNALS: tuple[str, ...] = (
-        "book a class", "book a slot", "schedule a class", "schedule me",
-        "ready to book", "ready to start classes", "want to book",
-        "start classes", "start lessons", "begin classes", "begin lessons",
-        "vreau sa rezerv", "vreau să rezerv", "rezerva o clasa", "rezervă o clasă",
-        "programeaza", "programează", "vreau sa incep", "vreau să încep",
-        "sa incepem", "să începem",
-    )
-
-    _RESCHEDULING_SIGNALS: tuple[str, ...] = (
-        "reschedule", "change class", "change my class", "change the class",
-        "different time", "different day", "different slot", "move to another",
-        "switch class", "switch to another", "switch my class", "need to move",
-        "can we move", "change the day", "change the time",
-        "reprogrameaza", "reprogramează", "schimba clasa", "schimbă clasa",
-        "alta zi", "altă zi", "alt slot", "muta clasa", "mută clasa",
-        "schimba ziua", "schimbă ziua", "schimba ora", "schimbă ora",
     )
 
     _LEVEL_DISPLAY: dict[str, dict[str, str]] = {
@@ -1457,354 +1393,7 @@ class ClassAssistant:
                         return opt_id
         return None
 
-    # ------------------------------------------------------------------
-    # Scheduling conversation flow
-    # ------------------------------------------------------------------
-
-    def _handle_scheduling_flow(
-        self, message: str, phone: str, lead: dict[str, Any], lang: str
-    ) -> list[str] | str | None:
-        step = lead.get("scheduling_step")
-        parent_tz = lead.get("timezone")
-
-        if step is None:
-            lead["scheduling_step"] = "ask_child_name"
-            lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-            self._save_leads()
-            if lang == "ro":
-                return "Super, hai să găsim clasa potrivită 🙂 Cum îl cheamă pe copil?"
-            return "Great, let's find the right class 🙂 What's your child's name?"
-
-        if step == "ask_child_name":
-            child_name = message.strip().title()
-            lead["scheduling_child_name"] = child_name
-            lead["scheduling_step"] = "ask_level"
-            lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-            self._save_leads()
-            if lang == "ro":
-                return (
-                    f"Ce nivel are {child_name} la șah?\n\n"
-                    "1. Începător — nu a mai jucat sau abia a început\n"
-                    "2. Mediu — știe piesele și regulile de bază\n"
-                    "3. Avansat — joacă de ceva timp și cunoaște deschideri"
-                )
-            return (
-                f"What level is {child_name} at in chess?\n\n"
-                "1. Beginner — never played or just starting out\n"
-                "2. Intermediate — knows the pieces and basic rules\n"
-                "3. Advanced — has been playing for a while and knows openings"
-            )
-
-        if step == "ask_level":
-            level = self._normalize_level(message)
-            if not level:
-                if lang == "ro":
-                    return "Poți alege: 1 (Începător), 2 (Mediu) sau 3 (Avansat)?"
-                return "Could you pick one: 1 (Beginner), 2 (Intermediate), or 3 (Advanced)?"
-            lead["scheduling_level"] = level
-            lead["scheduling_step"] = "ask_availability"
-            lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-            self._save_leads()
-            child_name = lead.get("scheduling_child_name", "your child")
-            if lang == "ro":
-                return (
-                    f"Ce zile și ore funcționează cel mai bine pentru {child_name}? "
-                    "De exemplu: luni și miercuri după-amiaza, sau weekend."
-                )
-            return (
-                f"What days and times work best for {child_name}? "
-                "For example: Monday and Wednesday afternoons, or weekends."
-            )
-
-        if step == "ask_availability":
-            level = lead.get("scheduling_level", "beginner")
-            child_lang = lead.get("child_language_pref") or lang
-            if child_lang not in ("en", "ro"):
-                child_lang = lang
-
-            available = self._get_available_classes(level, child_lang)
-            filtered = self._filter_classes_by_availability(available, message)
-
-            if not filtered:
-                lead.pop("scheduling_step", None)
-                lead.pop("scheduling_child_name", None)
-                lead.pop("scheduling_level", None)
-                lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-                self._save_leads()
-                self.notifier(
-                    f"NO MATCH — SCHEDULING\n"
-                    f"Phone: {phone}\n"
-                    f"Level: {lead.get('scheduling_level', 'N/A')}\n"
-                    f"Availability: {message}"
-                )
-                if lang == "ro":
-                    return (
-                        "Nu am găsit clase disponibile la nivelul ales pentru zilele menționate 🙁 "
-                        "Septi te va contacta cu opțiunile disponibile."
-                    )
-                return (
-                    "I couldn't find available classes at that level for those days 🙁 "
-                    "Septi will reach out with available options."
-                )
-
-            lead["scheduling_options"] = [c["id"] for c in filtered[:4]]
-            lead["scheduling_step"] = "pick_class"
-            lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-            self._save_leads()
-
-            options_text = self._format_class_options(filtered[:4], parent_tz)
-            child_name = lead.get("scheduling_child_name", "your child")
-            if lang == "ro":
-                return (
-                    f"Clase disponibile pentru {child_name}:\n\n"
-                    f"{options_text}\n\n"
-                    "Care îți convine? Scrie numărul sau ziua."
-                )
-            return (
-                f"Available classes for {child_name}:\n\n"
-                f"{options_text}\n\n"
-                "Which one works for you? Type the number or the day."
-            )
-
-        if step == "pick_class":
-            options = lead.get("scheduling_options", [])
-            selected_id = self._parse_class_selection(message, options)
-            if not selected_id:
-                if lang == "ro":
-                    return "Scrie numărul clasei (1, 2, 3...) sau ziua preferată."
-                return "Please type the class number (1, 2, 3...) or the day you prefer."
-
-            cls = self._get_class_by_id(selected_id)
-            if not cls:
-                if lang == "ro":
-                    return "Ceva nu a mers bine. Septi te va contacta cu opțiunile disponibile."
-                return "Something went wrong. Septi will reach out with available options."
-
-            child_name = lead.get("scheduling_child_name", "your child")
-            self._enroll_student(phone, child_name, selected_id)
-
-            lead.pop("scheduling_step", None)
-            lead.pop("scheduling_options", None)
-            lead.pop("scheduling_child_name", None)
-            lead.pop("scheduling_level", None)
-            lead["stage"] = "enrolled"
-            lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-            self._save_leads()
-
-            cls_desc = self._format_class_description(cls, parent_tz)
-            level_label = self._LEVEL_DISPLAY.get(
-                cls.get("level", "beginner"), {}
-            ).get(lang, cls.get("level", ""))
-            self.notifier(
-                f"NEW ENROLLMENT\n"
-                f"Phone: {phone}\n"
-                f"Child: {child_name}\n"
-                f"Class: {cls_desc}\n"
-                f"Level: {level_label}"
-            )
-            if lang == "ro":
-                return [
-                    f"Clasa a fost rezervată 🎉 {child_name} va fi la {cls_desc}.",
-                    "Septi îți va trimite linkul Zoom și detaliile înainte de prima lecție. Bun venit în echipa Sep7Ro! 🏆",
-                ]
-            return [
-                f"Class booked 🎉 {child_name} is enrolled in {cls_desc}.",
-                "Septi will send you the Zoom link and details before the first lesson. Welcome to the Sep7Ro family! 🏆",
-            ]
-
-        return None
-
-    # ------------------------------------------------------------------
-    # Rescheduling conversation flow
-    # ------------------------------------------------------------------
-
-    def _handle_rescheduling_flow(
-        self, message: str, phone: str, lead: dict[str, Any], lang: str
-    ) -> list[str] | str | None:
-        step = lead.get("rescheduling_step")
-        parent_tz = lead.get("timezone")
-        active_enrollments = self._get_student_enrollments(phone)
-
-        if step is None:
-            if not active_enrollments:
-                if lang == "ro":
-                    return "Nu am găsit nicio înregistrare pentru acest număr. Ești deja înscris?"
-                return "I don't have any enrollment on file for this number. Are you currently enrolled?"
-
-            if len(active_enrollments) == 1:
-                enr = active_enrollments[0]
-                lead["rescheduling_child_name"] = enr["child_name"]
-                lead["rescheduling_class_id"] = enr["class_id"]
-                lead["rescheduling_step"] = "ask_availability"
-                lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-                self._save_leads()
-                cls = self._get_class_by_id(enr["class_id"])
-                cls_desc = self._format_class_description(cls, parent_tz) if cls else "their current class"
-                if lang == "ro":
-                    return (
-                        f"{enr['child_name']} este înscris la {cls_desc}. "
-                        "Ce zile și ore ar funcționa mai bine?"
-                    )
-                return (
-                    f"{enr['child_name']} is currently in {cls_desc}. "
-                    "What days and times would work better?"
-                )
-
-            lead["rescheduling_step"] = "ask_child_name"
-            lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-            self._save_leads()
-            names = ", ".join(e["child_name"] for e in active_enrollments)
-            if lang == "ro":
-                return f"Pentru care copil vrei să reprogramezi? ({names})"
-            return f"Which child would you like to reschedule? ({names})"
-
-        if step == "ask_child_name":
-            matched = next(
-                (e for e in active_enrollments
-                 if message.strip().lower() in e["child_name"].lower()),
-                None,
-            )
-            if not matched:
-                names = ", ".join(e["child_name"] for e in active_enrollments)
-                if lang == "ro":
-                    return f"Nu am găsit acel copil. Poți scrie unul din: {names}"
-                return f"I couldn't find that child. Please type one of: {names}"
-            lead["rescheduling_child_name"] = matched["child_name"]
-            lead["rescheduling_class_id"] = matched["class_id"]
-            lead["rescheduling_step"] = "ask_availability"
-            lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-            self._save_leads()
-            cls = self._get_class_by_id(matched["class_id"])
-            cls_desc = self._format_class_description(cls, parent_tz) if cls else "their current class"
-            if lang == "ro":
-                return (
-                    f"{matched['child_name']} este înscris la {cls_desc}. "
-                    "Ce zile și ore ar funcționa mai bine?"
-                )
-            return (
-                f"{matched['child_name']} is in {cls_desc}. "
-                "What days and times would work better?"
-            )
-
-        if step == "ask_availability":
-            current_id = lead.get("rescheduling_class_id")
-            current_cls = self._get_class_by_id(current_id) if current_id else None
-            level = current_cls.get("level", "beginner") if current_cls else "beginner"
-            child_lang = lead.get("child_language_pref") or lang
-            if child_lang not in ("en", "ro"):
-                child_lang = lang
-
-            available = self._get_available_classes(level, child_lang, exclude_id=current_id)
-            filtered = self._filter_classes_by_availability(available, message)
-
-            if not filtered:
-                lead.pop("rescheduling_step", None)
-                lead.pop("rescheduling_child_name", None)
-                lead.pop("rescheduling_class_id", None)
-                lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-                self._save_leads()
-                self.notifier(
-                    f"NO MATCH — RESCHEDULING\n"
-                    f"Phone: {phone}\n"
-                    f"Current class: {lead.get('rescheduling_class_id', 'N/A')}\n"
-                    f"Availability: {message}"
-                )
-                if lang == "ro":
-                    return (
-                        "Nu am găsit alte clase disponibile la același nivel 🙁 "
-                        "Septi te va contacta cu opțiunile disponibile."
-                    )
-                return (
-                    "I couldn't find other available classes at the same level 🙁 "
-                    "Septi will reach out with available options."
-                )
-
-            lead["rescheduling_options"] = [c["id"] for c in filtered[:4]]
-            lead["rescheduling_step"] = "pick_class"
-            lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-            self._save_leads()
-
-            options_text = self._format_class_options(filtered[:4], parent_tz)
-            child_name = lead.get("rescheduling_child_name", "your child")
-            if lang == "ro":
-                return (
-                    f"Clase disponibile la același nivel pentru {child_name}:\n\n"
-                    f"{options_text}\n\n"
-                    "Care îți convine?"
-                )
-            return (
-                f"Available classes at the same level for {child_name}:\n\n"
-                f"{options_text}\n\n"
-                "Which one works for you?"
-            )
-
-        if step == "pick_class":
-            options = lead.get("rescheduling_options", [])
-            selected_id = self._parse_class_selection(message, options)
-            if not selected_id:
-                if lang == "ro":
-                    return "Scrie numărul clasei (1, 2, 3...) sau ziua preferată."
-                return "Please type the class number (1, 2, 3...) or the day you prefer."
-
-            new_cls = self._get_class_by_id(selected_id)
-            if not new_cls:
-                if lang == "ro":
-                    return "Ceva nu a mers bine. Septi te va contacta cu opțiunile."
-                return "Something went wrong. Septi will reach out with options."
-
-            child_name = lead.get("rescheduling_child_name", "your child")
-            old_class_id = lead.get("rescheduling_class_id")
-            old_cls = self._get_class_by_id(old_class_id) if old_class_id else None
-
-            # Deactivate only the specific old class slot, then add the new one.
-            if phone not in self.enrollments:
-                self.enrollments[phone] = []
-            for e in self.enrollments[phone]:
-                if (
-                    e.get("child_name", "").lower() == child_name.lower()
-                    and e.get("class_id") == old_class_id
-                ):
-                    e["active"] = False
-            self.enrollments[phone].append({
-                "child_name": child_name,
-                "class_id": selected_id,
-                "enrolled_at": datetime.now(timezone.utc).isoformat(),
-                "active": True,
-            })
-            self._save_enrollments()
-
-            lead.pop("rescheduling_step", None)
-            lead.pop("rescheduling_options", None)
-            lead.pop("rescheduling_child_name", None)
-            lead.pop("rescheduling_class_id", None)
-            lead["updated_at"] = datetime.now(timezone.utc).isoformat()
-            self._save_leads()
-
-            new_desc = self._format_class_description(new_cls, parent_tz)
-            old_desc = self._format_class_description(old_cls, parent_tz) if old_cls else "previous class"
-            self.notifier(
-                f"RESCHEDULE\n"
-                f"Phone: {phone}\n"
-                f"Child: {child_name}\n"
-                f"From: {old_desc}\n"
-                f"To: {new_desc}"
-            )
-            if lang == "ro":
-                return [
-                    f"Reprogramare confirmată 🎉 {child_name} a fost mutat de la {old_desc} la {new_desc}.",
-                    "Septi îți va trimite linkul Zoom actualizat înainte de prima lecție nouă.",
-                ]
-            return [
-                f"Reschedule confirmed 🎉 {child_name} has been moved from {old_desc} to {new_desc}.",
-                "Septi will send you the updated Zoom link before the first new lesson.",
-            ]
-
-        return None
-
     def _handle_lead_intake(self, message: str, phone: str) -> str | list[str] | None:
-        if phone in self.bookings:
-            return None
-
         lead = self._get_lead(phone)
 
         if lead is not None and lead.get("stage") == "faq_only":
@@ -1837,25 +1426,10 @@ class ClassAssistant:
                 first_q = "child_name" if existing_parent_name else "parent_name"
                 return [restart_msg, INTAKE_QUESTIONS[first_q][lang]]
 
-            # Scheduling a new class
-            if any(sig in message.lower() for sig in self._SCHEDULING_SIGNALS) or any(
-                sig in message.lower() for sig in self._ENROLLMENT_SIGNALS
-            ):
-                return self._handle_scheduling_flow(message, phone, lead, lang)
-
-            # Rescheduling an existing class
-            if any(sig in message.lower() for sig in self._RESCHEDULING_SIGNALS):
-                return self._handle_rescheduling_flow(message, phone, lead, lang)
-
             return None
 
-        # Enrolled parents can reschedule
+        # Enrolled parents — no structured scheduling flow; fall through to AI
         if lead is not None and lead.get("stage") == "enrolled":
-            lang = lead.get("lang", "en")
-            if any(sig in message.lower() for sig in self._RESCHEDULING_SIGNALS):
-                return self._handle_rescheduling_flow(message, phone, lead, lang)
-            if any(sig in message.lower() for sig in self._SCHEDULING_SIGNALS):
-                return self._handle_scheduling_flow(message, phone, lead, lang)
             return None
 
         lang = detect_language(message)
@@ -1891,7 +1465,7 @@ class ClassAssistant:
             rule_answer = self._rule_based_reply(message, phone)
             terminal_flat = [
                 v
-                for pool in (HANDOFF_VARIANTS, BOOKING_NOT_FOUND)
+                for pool in (HANDOFF_VARIANTS,)
                 for variants in pool.values()
                 for v in variants
             ]
@@ -1927,12 +1501,8 @@ class ClassAssistant:
                 self._save_leads()
                 return self._pick(PRICING_NEEDS_COUNTRY, lang)
 
-            # Scheduling signals in greeted stage → start scheduling flow directly.
-            text = message.lower()
-            if any(sig in text for sig in self._SCHEDULING_SIGNALS):
-                return self._handle_scheduling_flow(message, phone, lead, lang)
-
             # Only transition to intake when the message clearly signals enrollment interest.
+            text = message.lower()
             has_signal = any(sig in text for sig in self._ENROLLMENT_SIGNALS)
             if not has_signal:
                 # Let the AI (or outer rule) answer naturally; stay in greeted stage.
@@ -2263,28 +1833,6 @@ class ClassAssistant:
 
         # Signup/enrollment phrases are handled by the intake flow (_ENROLLMENT_SIGNALS
         # in _handle_lead_intake), not by a static fallback reply here.
-
-        if self._contains_any(
-            text,
-            (
-                "my class",
-                "my next class",
-                "when do i start",
-                "when does my",
-                "what time is my",
-                "when am i booked",
-                "my booking",
-                "my appointment",
-                "clasa mea",
-                "lectia mea",
-                "lecția mea",
-                "cand am clasa",
-                "când am clasa",
-                "cand incep",
-                "când începem",
-            ),
-        ):
-            return self._booking_reply(sender_phone, lang)
 
         # All remaining FAQ handlers are informational — let AI answer when enabled.
         if self.ai_enabled:
@@ -3007,22 +2555,6 @@ APPROVED INFORMATION:
             unclear = self._pick(UNCLEAR_INPUT, lang)
             self._append_to_history(phone, message, unclear)
             return [unclear]
-
-        # Active scheduling / rescheduling flow takes priority over all other routing.
-        if lead is not None:
-            lang = lead.get("lang", "en")
-            if "scheduling_step" in lead:
-                result = self._handle_scheduling_flow(message, phone, lead, lang)
-                if result is not None:
-                    parts = result if isinstance(result, list) else [result]
-                    self._append_to_history(phone, message, "\n\n".join(parts))
-                    return parts
-            if "rescheduling_step" in lead:
-                result = self._handle_rescheduling_flow(message, phone, lead, lang)
-                if result is not None:
-                    parts = result if isinstance(result, list) else [result]
-                    self._append_to_history(phone, message, "\n\n".join(parts))
-                    return parts
 
         intake_reply = self._handle_lead_intake(message, phone)
         if intake_reply is not None:
