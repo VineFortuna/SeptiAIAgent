@@ -1059,13 +1059,26 @@ class ClassAssistant:
         # English — complaints / refunds / urgent
         "complaint", "complain", "refund", "emergency", "urgent help",
         "manager", "supervisor", "human", "real person", "staff",
-        # Romanian
-        "vorbesc cu septi", "vorbesc cu cineva", "vreau să vorbesc cu",
-        "vreau sa vorbesc cu", "vreau să vorbesc cu o persoana",
-        "vreau sa vorbesc cu o persoana", "persoana reala", "persoana reală",
-        "om real", "agent uman", "conecteaza-ma", "conectează-mă",
-        "reclamatie", "reclamație", "rambursare", "urgenta", "urgență",
+        # Romanian — speak to a human / Septi
+        "vreau să vorbesc cu", "vreau sa vorbesc cu",
+        "doresc să vorbesc cu", "doresc sa vorbesc cu",
+        "pot să vorbesc cu", "pot sa vorbesc cu",
+        "pot vorbi cu", "aș vrea să vorbesc cu", "as vrea sa vorbesc cu",
+        "vreau să vorbesc cu cineva", "vreau sa vorbesc cu cineva",
+        "vreau să vorbesc cu un om", "vreau sa vorbesc cu un om",
+        "vreau să vorbesc cu septi", "vreau sa vorbesc cu septi",
+        "vorbesc cu septi", "vorbesc cu cineva",
         "vorbesc cu o persoana", "vorbesc cu o persoană",
+        "dați-mi pe septi", "dati-mi pe septi",
+        "ia legatura cu septi", "ia legătura cu septi",
+        "cheama-l pe septi", "cheamă-l pe septi",
+        # Romanian — real person
+        "om real", "un om real", "un om adevarat", "un om adevărat",
+        "persoana reala", "persoana reală", "o persoana reala", "o persoană reală",
+        "cineva real", "agent uman", "conecteaza-ma", "conectează-mă",
+        # Romanian — complaints / refunds / urgent
+        "reclamatie", "reclamație", "plangere", "plângere",
+        "rambursare", "urgenta", "urgență",
     )
 
     # Sentences ending with these words are clearly cut off mid-thought.
