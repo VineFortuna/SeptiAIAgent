@@ -1107,9 +1107,19 @@ class ClassAssistant:
         "register",
         "want to join", "like to join", "i'd like to join",
         "get started", "get my kid started", "get my child started",
+        "how do i join", "how can i join",
+        "how do i sign", "how can i sign",
+        "how do i register", "how can i register",
+        "how do i enroll", "how can i enroll",
+        "i want to start", "i'd like to start",
+        "join the program", "join the class", "join a class",
         # Romanian
         "înscri", "inscri",
         "înregistra", "inregistra",
+        "cum ma inscriu", "cum mă înscriu",
+        "cum ma inregistrez", "cum mă înregistrez",
+        "vreau sa ma inscriu", "vreau să mă înscriu",
+        "vreau sa incep", "vreau să încep",
     )
 
     _LEVEL_DISPLAY: dict[str, dict[str, str]] = {
@@ -1495,6 +1505,25 @@ class ClassAssistant:
                     restart_msg = "Of course, let's go through the details for your second child 🙂"
                 first_q = "child_name" if existing_parent_name else "parent_name"
                 return [restart_msg, INTAKE_QUESTIONS[first_q][lang]]
+
+            # Parent in faq_only asks to sign up (e.g. explored FAQs first, now ready).
+            # Restart intake so we can collect their details properly.
+            if any(sig in message.lower() for sig in self._ENROLLMENT_SIGNALS):
+                existing_parent_name = lead.get("parent_name")
+                lead["stage"] = "intake_in_progress"
+                lead["collected_fields"] = ["parent_name"] if existing_parent_name else []
+                lead["handed_off"] = False
+                lead["demo_interest"] = None
+                lead["nudge_sent"] = False
+                lead["post_intake_nudge_sent"] = False
+                lead["updated_at"] = datetime.now(timezone.utc).isoformat()
+                self._save_leads()
+                if self.ai_enabled:
+                    ai_response = self._ai_reply(message, phone, suppress_intake_questions=True)
+                    first_q = "child_name" if existing_parent_name else "parent_name"
+                    return [ai_response, INTAKE_QUESTIONS[first_q][lang]]
+                first_q = "child_name" if existing_parent_name else "parent_name"
+                return [self._pick(INTAKE_TRANSITION, lang), INTAKE_QUESTIONS[first_q][lang]]
 
             return None
 
@@ -2525,7 +2554,12 @@ Rules:
   You don't have access to anyone else's records, only this approved
   business information.
 - Do not claim that a customer has successfully registered.
-- Give the registration link when asked about registration.
+- If someone asks HOW to sign up, says they want to sign up, or expresses enrollment
+  intent ("how can I sign up", "I want to register", "how do I enroll"), do NOT send
+  a registration link. Instead, tell them warmly that you'll walk them through a few
+  quick questions to get them set up. The intake system will collect their details.
+- Only give the registration link if the parent explicitly asks for "the link" or
+  "the registration link" itself.
 - If someone says they want to think about it, need more time, or sends
   a low-commitment conversational reply ("sounds good", "ok thanks",
   "I'll think about it", "can I think about it?", "maybe later",
