@@ -2329,9 +2329,13 @@ class ClassAssistant:
     def _ai_reply(self, message: str, sender_phone: str, *, suppress_intake_questions: bool = False, intake_context: dict | None = None) -> str:
         assert self.client is not None
 
-        lang = detect_language(message)
         phone = self._normalize_phone(sender_phone)
         lead = self._get_lead(phone)
+        # Use the lead's stored language when available — terse intake answers like
+        # "7" or "Ana" have no language markers and would otherwise default to English.
+        lang = lead.get("lang") if lead else detect_language(message)
+        if not lang:
+            lang = detect_language(message)
 
         # Prefer the currency we set from the parent's stated country over the
         # phone-prefix guess — a Romanian-number parent living in the UK should
@@ -2657,7 +2661,8 @@ APPROVED INFORMATION:
             elif self.ai_enabled:
                 reply_text = self._ai_reply(message, sender_phone)
             else:
-                reply_text = self._handoff(detect_language(message))
+                _lang = lead.get("lang", detect_language(message)) if lead else detect_language(message)
+                reply_text = self._handoff(_lang)
             parts = [reply_text]
 
         _thinking_triggered = (
