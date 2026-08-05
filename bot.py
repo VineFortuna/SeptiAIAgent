@@ -1012,7 +1012,10 @@ class ClassAssistant:
             f"Parent: {parent}",
             f"Child: {lead.get('child_name') or '-'}",
         ]
-        self.notifier("\n".join(lines))
+        body = "\n".join(lines)
+        print(f"[NOTIFY] Firing human-request alert for {phone}")
+        result = self.notifier(body)
+        print(f"[NOTIFY] Alert sent={result}")
 
     _THINKING_IT_OVER_PHRASES: tuple[str, ...] = (
         "think about it", "i'll think", "let me think", "need some time",

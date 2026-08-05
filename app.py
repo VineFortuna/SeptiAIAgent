@@ -247,6 +247,23 @@ def test_message() -> Response:
     return jsonify({"reply": "\n\n".join(parts)})
 
 
+@app.post("/test-notification")
+@require_admin_key
+def test_notification() -> Response:
+    """Send a test staff notification directly, bypassing the dedup flag."""
+    from notifications import send_staff_notification
+    payload = request.get_json(silent=True) or {}
+    phone = str(payload.get("phone", "+10000000000")).strip()
+    body = (
+        f"🙋 TEST — Someone wants to speak with you directly\n"
+        f"WhatsApp: {phone} | https://wa.me/{phone.lstrip('+')}\n"
+        f"Parent: Test Parent\n"
+        f"Child: Test Child"
+    )
+    sent = send_staff_notification(body)
+    return jsonify({"sent": sent, "to": os.getenv("STAFF_NOTIFICATION_PHONE", "(not set)")})
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=True)
