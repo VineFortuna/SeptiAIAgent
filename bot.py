@@ -1002,6 +1002,18 @@ class ClassAssistant:
 
         self.notifier("\n".join(lines))
 
+    def _notify_human_request(self, phone: str, lead: dict[str, Any]) -> None:
+        """Send Septi a direct-contact alert when a user asks to speak to a human."""
+        wa_link = f"https://wa.me/{phone.lstrip('+')}"
+        parent = lead.get("parent_name") or "-"
+        lines = [
+            "🙋 Someone wants to speak with you directly",
+            f"WhatsApp: {phone} | {wa_link}",
+            f"Parent: {parent}",
+            f"Child: {lead.get('child_name') or '-'}",
+        ]
+        self.notifier("\n".join(lines))
+
     _THINKING_IT_OVER_PHRASES: tuple[str, ...] = (
         "think about it", "i'll think", "let me think", "need some time",
         "take some time", "not sure yet", "maybe later", "i'll consider",
@@ -2678,7 +2690,7 @@ APPROVED INFORMATION:
                 lead["human_requested"] = True
                 lead["updated_at"] = datetime.now(timezone.utc).isoformat()
                 self._save_leads()
-                self._maybe_notify_staff(phone, lead)
+                self._notify_human_request(phone, lead)
             if self.ai_enabled:
                 reply_text = self._ai_reply(message, sender_phone)
             else:
