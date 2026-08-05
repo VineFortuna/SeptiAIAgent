@@ -1243,9 +1243,9 @@ class ClassAssistant:
             normalized = self._normalize_intake_answer(field, message)
             return normalized in CONSTRAINED_FIELD_VALUES[field]
 
+        # demo_interest accepts any reply — normalization interprets yes/no/ambiguous
         if field == "demo_interest":
-            normalized = self._normalize_intake_answer("demo_interest", message)
-            return normalized in ("yes", "no")
+            return True
 
         return True
 
@@ -1707,7 +1707,9 @@ class ClassAssistant:
             return [self._pick(INTAKE_ACK, lang), INTAKE_QUESTIONS[next_field][lang]]
 
         lead["stage"] = "faq_only"
-        demo_yes = lead.get("demo_interest") == "yes"
+        # Treat anything other than an explicit "no" as interested — benefit of the doubt
+        # (covers "can he get back to you?", "maybe", "sure", "yes", etc.)
+        demo_yes = lead.get("demo_interest") != "no"
         lead["handed_off"] = demo_yes
         self._save_leads()
         if demo_yes:
