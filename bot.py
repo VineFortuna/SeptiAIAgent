@@ -824,6 +824,10 @@ class ClassAssistant:
 
         return str(value).strip()
 
+    def _is_human_request(self, message: str) -> bool:
+        """Returns True if the message clearly asks to speak to a human / Septi."""
+        return self._contains_any(message.lower(), self._HUMAN_REQUEST_SIGNALS)
+
     def _handoff(self, lang: str = "ro") -> str:
         return self._pick(HANDOFF_VARIANTS, lang)
 
@@ -1035,6 +1039,33 @@ class ClassAssistant:
         "nu mai vreau", "nu mai sunt interesat",
         "nu mai sunt interesată", "lasa balta", "lasă baltă",
         "renunț", "renunt",
+    )
+
+    # Phrases that signal the parent wants to speak to a human / Septi directly.
+    # Checked before intake processing so mid-intake requests are always caught.
+    _HUMAN_REQUEST_SIGNALS: tuple[str, ...] = (
+        # English — explicit human/person requests
+        "speak to a human", "talk to a human", "speak to someone", "talk to someone",
+        "speak to a person", "talk to a person", "speak to a real person",
+        "talk to a real person", "want a human", "need a human",
+        "speak to an agent", "talk to an agent", "human agent", "human support",
+        "speak to the owner", "talk to the owner", "speak to the manager",
+        "talk to the manager", "speak to staff", "talk to staff",
+        "speak to septi", "talk to septi", "contact septi", "reach septi",
+        "connect me to", "put me through to", "i want to talk to",
+        "i want to speak to", "can i speak to", "can i talk to",
+        "get me a human", "let me talk to", "let me speak to",
+        "transfer me", "escalate", "real support",
+        # English — complaints / refunds / urgent
+        "complaint", "complain", "refund", "emergency", "urgent help",
+        "manager", "supervisor", "human", "real person", "staff",
+        # Romanian
+        "vorbesc cu septi", "vorbesc cu cineva", "vreau să vorbesc cu",
+        "vreau sa vorbesc cu", "vreau să vorbesc cu o persoana",
+        "vreau sa vorbesc cu o persoana", "persoana reala", "persoana reală",
+        "om real", "agent uman", "conecteaza-ma", "conectează-mă",
+        "reclamatie", "reclamație", "rambursare", "urgenta", "urgență",
+        "vorbesc cu o persoana", "vorbesc cu o persoană",
     )
 
     # Sentences ending with these words are clearly cut off mid-thought.
@@ -1844,25 +1875,12 @@ class ClassAssistant:
             if paragraphs:
                 return "\n\n".join(paragraphs)
 
-        if self._contains_any(
-            text,
-            (
-                "human",
-                "staff",
-                "real person",
-                "manager",
-                "complaint",
-                "refund",
-                "emergency",
-                "om real",
-                "vorbesc cu o persoana",
-                "reclamatie",
-                "reclamație",
-                "rambursare",
-                "urgenta",
-                "urgență",
-            ),
-        ):
+        # Human-request signals are handled upstream in _reply_locked (pre-check),
+        # which also notifies Septi. This fallback only fires if _rule_based_reply is
+        # called outside of _reply_locked (e.g. mid-intake FAQ check).
+        if self._is_human_request(message):
+            if self.ai_enabled:
+                return None
             return self._handoff(lang)
 
         # Signup/enrollment phrases are handled by the intake flow (_ENROLLMENT_SIGNALS
@@ -2597,6 +2615,24 @@ APPROVED INFORMATION:
             unclear = self._pick(UNCLEAR_INPUT, lang)
             self._append_to_history(phone, message, unclear)
             return [unclear]
+
+        # Pre-check: explicit request to speak to a human — intercepts even mid-intake.
+        if self._is_human_request(message):
+            lang = lead.get("lang", detect_language(message)) if lead else detect_language(message)
+            if lead is None:
+                lead = self._create_lead(phone, lang, initial_stage="greeted")
+            # Only notify Septi once per conversation (deduplicated)
+            if not lead.get("human_requested"):
+                lead["human_requested"] = True
+                lead["updated_at"] = datetime.now(timezone.utc).isoformat()
+                self._save_leads()
+                self._maybe_notify_staff(phone, lead)
+            if self.ai_enabled:
+                reply_text = self._ai_reply(message, sender_phone)
+            else:
+                reply_text = self._handoff(lang)
+            self._append_to_history(phone, message, reply_text)
+            return [reply_text]
 
         intake_reply = self._handle_lead_intake(message, phone)
         if intake_reply is not None:
