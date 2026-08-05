@@ -507,6 +507,7 @@ class ClassAssistant:
 
         self.leads_path = leads_path or (BASE_DIR / "leads.json")
         self._db_available = db.init_db()
+        print(f"[DB] available={self._db_available}")
         if self._db_available:
             db_leads = db.load_leads()
             if db_leads:
