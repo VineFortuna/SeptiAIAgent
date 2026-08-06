@@ -2654,7 +2654,6 @@ APPROVED INFORMATION:
             return self._reply_locked(message, sender_phone)
 
     def _reply_locked(self, message: str, sender_phone: str) -> list[str]:
-        print(f"[DEBUG] ai_enabled={self.ai_enabled} api_key_set={bool(self.api_key)}")
         phone = self._normalize_phone(sender_phone)
         lead = self._get_lead(phone)
 
