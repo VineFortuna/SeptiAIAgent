@@ -2688,9 +2688,19 @@ APPROVED INFORMATION:
             lang = lead.get("lang", detect_language(message)) if lead else detect_language(message)
             if lead is None:
                 lead = self._create_lead(phone, lang, initial_stage="greeted")
-            # Only notify Septi once per conversation (deduplicated)
-            if not lead.get("human_requested"):
+            # Notify Septi once per hour — prevents spam from duplicate webhooks or
+            # repeated asks, but fires again if the same person comes back later.
+            last_notified_str = lead.get("human_request_notified_at")
+            should_notify = True
+            if last_notified_str:
+                try:
+                    last_notified = datetime.fromisoformat(last_notified_str)
+                    should_notify = (datetime.now(timezone.utc) - last_notified) > timedelta(hours=1)
+                except ValueError:
+                    pass
+            if should_notify:
                 lead["human_requested"] = True
+                lead["human_request_notified_at"] = datetime.now(timezone.utc).isoformat()
                 lead["updated_at"] = datetime.now(timezone.utc).isoformat()
                 self._save_leads()
                 self._notify_human_request(phone, lead)
