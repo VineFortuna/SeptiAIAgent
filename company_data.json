@@ -126,7 +126,7 @@
   },
   "contact_phone": "+1 437 871 0793",
   "contact_email": "contact@sep7ro.com",
-  "payment_methods": "REPLACE WITH ACCEPTED PAYMENT METHODS",
+  "payment_methods": "Revolut, Wise, Stripe, Zelle, e-Transfer, and bank transfer (BT)",
   "cancellation_policy": {
     "en": [
       "Missed sessions can always be rescheduled, I guarantee a makeup session",
