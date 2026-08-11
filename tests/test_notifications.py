@@ -1,5 +1,7 @@
 from unittest.mock import patch, MagicMock
 
+from bot import REQUIRED_INTAKE_FIELDS
+from conftest import make_mock_client
 from notifications import send_staff_notification, send_whatsapp_message
 
 
@@ -32,24 +34,25 @@ def test_notification_noop_when_unconfigured(monkeypatch) -> None:
 
 
 def test_intake_completion_triggers_injected_notifier(bot) -> None:
+    bot.ai_enabled = True
     sent: list[str] = []
-    bot.notifier = sent.append
+    bot.notifier = lambda msg: sent.append(msg) or True
+
+    result = {
+        "reply": "All set, thanks!",
+        "lang": "en",
+        "wants_human": False,
+        "thinking_it_over": False,
+        "complete": True,
+        "multiple_children": False,
+        "demo_interest": True,
+    }
+    for field in REQUIRED_INTAKE_FIELDS:
+        result.setdefault(field, "value")
+    bot.client = make_mock_client("intake", result)
 
     phone = "+40712345678"
-    bot.reply("Hi", phone)
-    bot.reply("I want to sign up", phone)
-    bot.reply("John", phone)
-    bot.reply("Emma", phone)
-    bot.reply("Romanian", phone)
-    bot.reply("GMT+2", phone)
-    bot.reply("7 years old", phone)
-    bot.reply("No, never played", phone)
-    bot.reply("Weekday evenings", phone)
-    bot.reply("After 3:30pm", phone)
-    bot.reply("Exploratori", phone)
-    bot.reply("No extra notes", phone)
-    bot.reply("TikTok", phone)
-    bot.reply("yes", phone)   # demo_interest → triggers notification
+    bot.reply("yes", phone)   # demo_interest true, complete=true → triggers notification
 
     assert len(sent) == 1
     assert phone in sent[0]

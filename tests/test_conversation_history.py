@@ -1,56 +1,81 @@
-from unittest.mock import MagicMock
+from conftest import make_mock_client
+from conversation_store import ConversationStore
 
 
-def test_history_accumulates_across_replies(bot) -> None:
-    phone = "+14165559010"
-    bot.reply("Hi", phone)
-    bot.reply("What classes do you offer?", phone)
+def test_history_accumulates_within_a_flow() -> None:
+    store = ConversationStore()
+    store.append("+1416", "faq", "user", "Hi")
+    store.append("+1416", "faq", "assistant", "Hello!")
 
-    history = bot._conversation_history[phone]
-    assert len(history) == 4
-    assert history[0] == {"role": "user", "content": "Hi"}
-    assert history[2] == {"role": "user", "content": "What classes do you offer?"}
-
-
-def test_history_is_isolated_per_phone(bot) -> None:
-    bot.reply("Hi", "+14165559011")
-    bot.reply("Salut", "+14165559012")
-
-    assert "+14165559011" in bot._conversation_history
-    assert "+14165559012" in bot._conversation_history
-    assert len(bot._conversation_history["+14165559011"]) == 2
-    assert len(bot._conversation_history["+14165559012"]) == 2
+    assert store.get("+1416", "faq") == [
+        {"role": "user", "content": "Hi"},
+        {"role": "assistant", "content": "Hello!"},
+    ]
 
 
-def test_history_capped_at_20_messages(bot) -> None:
-    phone = "+14165559013"
-    for _ in range(12):
-        bot.reply("Hi", phone)
+def test_history_is_isolated_per_flow() -> None:
+    store = ConversationStore()
+    store.append("+1416", "faq", "user", "faq question")
+    store.append("+1416", "intake", "user", "intake answer")
 
-    assert len(bot._conversation_history[phone]) == 20
+    assert store.get("+1416", "faq") == [{"role": "user", "content": "faq question"}]
+    assert store.get("+1416", "intake") == [{"role": "user", "content": "intake answer"}]
 
 
-def test_ai_reply_receives_prior_history(bot) -> None:
+def test_history_is_isolated_per_phone() -> None:
+    store = ConversationStore()
+    store.append("+1416", "faq", "user", "a")
+    store.append("+1647", "faq", "user", "b")
+
+    assert store.get("+1416", "faq") == [{"role": "user", "content": "a"}]
+    assert store.get("+1647", "faq") == [{"role": "user", "content": "b"}]
+
+
+def test_faq_history_capped_at_its_configured_limit() -> None:
+    store = ConversationStore()
+    for i in range(10):
+        store.append("+1416", "faq", "user", str(i))
+
+    history = store.get("+1416", "faq")
+    assert len(history) == 5
+    assert history[0]["content"] == "5"
+
+
+def test_intake_history_has_a_higher_cap_than_faq() -> None:
+    store = ConversationStore()
+    for i in range(25):
+        store.append("+1416", "intake", "user", str(i))
+
+    assert len(store.get("+1416", "intake")) == 20
+
+
+def test_clear_removes_every_flow_for_that_phone() -> None:
+    store = ConversationStore()
+    store.append("+1416", "faq", "user", "a")
+    store.append("+1416", "intake", "user", "b")
+
+    store.clear("+1416")
+
+    assert store.get("+1416", "faq") == []
+    assert store.get("+1416", "intake") == []
+
+
+def test_faq_flow_call_receives_prior_history(bot) -> None:
     bot.ai_enabled = True
-    mock_response = MagicMock()
-    mock_response.output_text = "Standard is £56/month"
-    mock_client = MagicMock()
-    mock_client.responses.create.return_value = mock_response
-    bot.client = mock_client
+    bot.client = make_mock_client("faq", {
+        "reply": "Sure, happy to help!",
+        "lang": "en",
+        "wants_human": False,
+        "thinking_it_over": False,
+    })
 
     phone = "+447911123456"
     bot.reply("Hi", phone)
-    bot.reply("I want to sign up", phone)  # enrollment signal → starts intake, asks name
-    bot.reply("John", phone)               # parent_name
-    bot.reply("Emma", phone)               # child_name
-    bot.reply("UK", phone)                 # stores country, sets currency_bucket=GBP
+    bot.reply("What classes do you offer?", phone)
 
-    bot.reply("How much does the standard package cost?", phone)
-
-    input_sent = mock_client.responses.create.call_args[1]["input"]
+    last_call_kwargs = bot.client.responses.create.call_args_list[-1].kwargs
+    input_sent = last_call_kwargs["input"]
 
     assert isinstance(input_sent, list)
-    assert len(input_sent) >= 3
-    assert input_sent[-1]["role"] == "user"
-    assert input_sent[-1]["content"] == "How much does the standard package cost?"
+    assert input_sent[-1] == {"role": "user", "content": "What classes do you offer?"}
     assert any(m["role"] == "assistant" for m in input_sent[:-1])
