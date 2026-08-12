@@ -1165,6 +1165,18 @@ class ClassAssistant:
         "hm", "hmm", "huh", "lol",
     })
 
+    # Phrases that should NEVER be accepted as a name answer — they're
+    # conversational confirmations / filler, not an actual name.
+    _NAME_NON_ANSWERS: frozenset[str] = frozenset({
+        "ok", "okay", "ok go ahead", "okay go ahead",
+        "go ahead", "sure", "sure go ahead", "yes", "yeah", "yep", "yup",
+        "ready", "i'm ready", "im ready",
+        "sounds good", "alright", "alright go ahead",
+        "let's go", "lets go", "let's start", "lets start",
+        "proceed", "continue",
+        "da", "bine", "bine mergi", "hai",  # Romanian equivalents
+    })
+
     # Maps lowercase city names to a human-readable timezone string for Septi.
     # Word-boundary matched, so "la" won't fire on "class" or "language".
     _CITY_TIMEZONES: dict[str, str] = {
@@ -1312,9 +1324,9 @@ class ClassAssistant:
         if text in self._NON_ANSWERS:
             return False
 
-        # Names are free-form but must pass the NON_ANSWERS check above
+        # Names are free-form but must not be a generic confirmation phrase
         if field in ("parent_name", "child_name"):
-            return True
+            return text not in self._NAME_NON_ANSWERS
 
         if field == "child_age":
             return bool(re.search(r"\d", message))
@@ -1808,11 +1820,14 @@ class ClassAssistant:
         if next_field is not None:
             self._save_leads()
             if self.ai_enabled:
-                return [self._ai_reply(message, phone, intake_context={
+                # AI only acknowledges what the parent said — the hardcoded next question
+                # is always appended as a separate message so the AI can never skip fields,
+                # combine questions, or ask something different.
+                ai_ack = self._ai_reply(message, phone, intake_context={
                     "just_collected": pending_field,
-                    "next_field": next_field,
-                    "next_question": INTAKE_QUESTIONS[next_field][lang],
-                })]
+                    "ack_only": True,
+                })
+                return [ai_ack, INTAKE_QUESTIONS[next_field][lang]]
             return [self._pick(INTAKE_ACK, lang), INTAKE_QUESTIONS[next_field][lang]]
 
         lead["stage"] = "faq_only"
@@ -2517,6 +2532,16 @@ class ClassAssistant:
                     f"through it ('even a rough idea works 🙂'); if they went off-topic, acknowledge it "
                     f"first; if they seem unsure, reassure them. Never say 'I didn't catch that' or "
                     f"anything robotic like that. Then re-ask naturally in a different way: {next_q}\n"
+                )
+            elif intake_context.get("ack_only"):
+                just_collected = intake_context.get("just_collected", "").replace("_", " ")
+                intake_context_note = (
+                    f"\nTask: You just received the parent's {just_collected}. "
+                    f"React to what they said naturally — if they made a joke, laugh along; "
+                    f"if they asked something, answer it; if they said something worth "
+                    f"acknowledging, do so warmly. Do NOT ask any question — a separate "
+                    f"question will follow automatically right after your message. "
+                    f"Keep it to 1 short sentence.\n"
                 )
             elif intake_context.get("next_field"):
                 just_collected = intake_context.get("just_collected", "").replace("_", " ")
