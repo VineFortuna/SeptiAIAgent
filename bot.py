@@ -909,6 +909,10 @@ class ClassAssistant:
         if field == "child_language_pref":
             has_ro = self._contains_any(lowered, ("romana", "română", "romanian"))
             has_en = self._contains_any(lowered, ("engleza", "engleză", "english"))
+            has_other = self._contains_any(lowered, (
+                "another", "something else", "other language", "and another",
+                "also", "plus", "și altceva", "si altceva", "alta limba", "altă limbă",
+            ))
             if has_ro and has_en:
                 return "both"
             if self._contains_any(lowered, (
@@ -916,6 +920,11 @@ class ClassAssistant:
                 "si una si alta", "și una și alta",
                 "si romana si", "și română și",
             )):
+                return "both"
+            # "english and something else" / "english and another" → treat as both
+            if has_en and has_other:
+                return "both"
+            if has_ro and has_other:
                 return "both"
             if has_ro:
                 return "ro"
@@ -2513,9 +2522,12 @@ class ClassAssistant:
                 next_q = intake_context.get("next_question", "")
                 intake_context_note = (
                     f"\nTask: You just received the parent's {just_collected}. "
-                    f"Acknowledge it briefly and naturally (vary it — don't always say 'Got it' or 'Perfect'), "
-                    f"then ask: {next_q} "
-                    f"Keep the whole response to 1-2 sentences. No lists.\n"
+                    f"FIRST — actually read what they said and respond to it like a real person would. "
+                    f"If they made a joke, laugh along. If they asked you something, answer it. "
+                    f"If they said something unexpected or funny, engage with it. "
+                    f"Don't just say 'Got it' and move on — that feels robotic. "
+                    f"THEN — once you've responded to what they said, naturally weave in: {next_q} "
+                    f"Keep it conversational, 1-3 sentences total. No lists.\n"
                 )
 
         instructions = f"""
