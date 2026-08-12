@@ -1324,9 +1324,13 @@ class ClassAssistant:
         if text in self._NON_ANSWERS:
             return False
 
-        # Names are free-form but must not be a generic confirmation phrase
+        # Names must not be a generic confirmation phrase (exact match) OR
+        # start with a confirmation word ("okay im ready ask whenever" → "okay").
         if field in ("parent_name", "child_name"):
-            return text not in self._NAME_NON_ANSWERS
+            if text in self._NAME_NON_ANSWERS:
+                return False
+            first_word = text.split()[0] if text.split() else ""
+            return first_word not in self._NAME_NON_ANSWERS
 
         if field == "child_age":
             return bool(re.search(r"\d", message))
@@ -2488,8 +2492,11 @@ class ClassAssistant:
                 "\nTask: The parent just expressed interest in enrolling their child. "
                 "Write a warm, brief welcome (1-2 sentences max). Acknowledge that you'll "
                 "collect a few details to get them set up. Do NOT mention the demo lesson, "
-                "do NOT describe the enrollment process, do NOT ask any questions — "
-                "a separate question will follow automatically right after your message.\n"
+                "do NOT describe the enrollment process. "
+                "CRITICAL: Do NOT ask ANY question at all — not about name, age, country, "
+                "availability, experience, or anything else. A separate question will be "
+                "sent automatically right after your message. Your message must end with a "
+                "statement or exclamation, never a question mark.\n"
             )
 
         intake_context_note = ""
@@ -2539,8 +2546,11 @@ class ClassAssistant:
                     f"\nTask: You just received the parent's {just_collected}. "
                     f"React to what they said naturally — if they made a joke, laugh along; "
                     f"if they asked something, answer it; if they said something worth "
-                    f"acknowledging, do so warmly. Do NOT ask any question — a separate "
-                    f"question will follow automatically right after your message. "
+                    f"acknowledging, do so warmly. "
+                    f"CRITICAL: Do NOT ask any question at all. Not about availability, "
+                    f"scheduling, the child, or anything else. A separate question will be "
+                    f"sent automatically right after your message. Your response must end "
+                    f"with a statement or exclamation, never a question mark. "
                     f"Keep it to 1 short sentence.\n"
                 )
             elif intake_context.get("next_field"):
@@ -2610,6 +2620,13 @@ Rules:
 - Never invent Sep7Ro-specific facts: prices, class schedules, availability
   slots, booking details, or registration links. For these, use only what's
   in the approved information.
+- You are NOT a scheduling system. You cannot check, search for, or book
+  time slots. Septi handles ALL scheduling. When a parent shares their
+  availability (e.g. "Tuesdays after 3pm"), just acknowledge it warmly —
+  NEVER say "I'll check for slots", "I'll find a time that works", "let me
+  look for available times", or anything that implies you are doing something
+  on their behalf. You are collecting info for Septi, not making any
+  scheduling commitments yourself.
 - For everything else — general chess questions (how pieces move, openings,
   strategy, benefits of chess for kids, how to practice at home), Lichess
   tips, child learning and development, or anything a knowledgeable chess
