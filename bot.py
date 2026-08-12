@@ -1725,6 +1725,12 @@ class ClassAssistant:
         alphanum = re.sub(r"[^a-zA-Z0-9]", "", message)
         too_short = pending_field != "child_age" and len(alphanum) < 2
         if too_short or not self._is_valid_intake_answer(pending_field, message):
+            if self.ai_enabled:
+                return [self._ai_reply(message, phone, intake_context={
+                    "next_field": pending_field,
+                    "next_question": INTAKE_QUESTIONS[pending_field][lang],
+                    "re_asking": True,
+                })]
             opener = random.choice(
                 ["Hmm, didn't quite catch that 😊 ", "Not sure I got that, ", "Sorry, didn't get that. "]
                 if lang == "en" else
@@ -2494,6 +2500,14 @@ class ClassAssistant:
                         f"\nTask: The parent just said hello while you're mid-intake. "
                         f"Respond warmly and ask: {next_q}\n"
                     )
+            elif intake_context.get("re_asking"):
+                next_q = intake_context.get("next_question", "")
+                intake_context_note = (
+                    f"\nTask: The parent's last message didn't clearly answer the question you asked. "
+                    f"Respond warmly and naturally — don't say 'I didn't catch that' or repeat their message back. "
+                    f"Just re-ask gently in a different way: {next_q} "
+                    f"Keep it to 1-2 sentences.\n"
+                )
             elif intake_context.get("next_field"):
                 just_collected = intake_context.get("just_collected", "").replace("_", " ")
                 next_q = intake_context.get("next_question", "")
@@ -2680,8 +2694,9 @@ APPROVED INFORMATION:
 
         # Check intelligibility before doing anything — but not mid-intake,
         # where terse answers like "english" or "7" are expected and valid.
+        # When AI is enabled, skip this entirely — OpenAI handles anything gracefully.
         in_intake = lead is not None and lead.get("stage") == "intake_in_progress"
-        if not in_intake and not self._is_intelligible(message):
+        if not self.ai_enabled and not in_intake and not self._is_intelligible(message):
             lang = lead.get("lang", "ro") if lead else detect_language(message)
             unclear = self._pick(UNCLEAR_INPUT, lang)
             self._append_to_history(phone, message, unclear)
