@@ -2697,6 +2697,11 @@ APPROVED INFORMATION:
         phone = self._normalize_phone(sender_phone)
         lead = self._get_lead(phone)
 
+        # /resetchat — wipe this user's lead and conversation history
+        if message.strip().lower() == "/resetchat":
+            self.clear_lead(phone)
+            return ["Chat reset 🙂 Let's start fresh — how can I help you?"]
+
         # Any new message clears the "thinking it over" waiting state
         if lead is not None and lead.get("thinking_it_over"):
             lead["thinking_it_over"] = False
