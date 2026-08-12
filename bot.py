@@ -1120,14 +1120,17 @@ class ClassAssistant:
         "sign up", "signup", "signing up", "sign me", "sign my",
         "enroll", "enrollment", "enrolment",
         "register",
-        "want to join", "like to join", "i'd like to join",
+        "want to join", "like to join", "i'd like to join", "would like to join",
+        "interested in joining", "interested in signing", "interested in enrolling",
+        "interested in registering", "interested in starting",
         "get started", "get my kid started", "get my child started",
         "how do i join", "how can i join",
         "how do i sign", "how can i sign",
         "how do i register", "how can i register",
         "how do i enroll", "how can i enroll",
         "i want to start", "i'd like to start",
-        "join the program", "join the class", "join a class",
+        "join the program", "join the class", "join a class", "joining the",
+        "want to start", "looking to join", "looking to sign", "looking to enroll",
         # Romanian
         "înscri", "inscri",
         "înregistra", "inregistra",
@@ -1135,6 +1138,8 @@ class ClassAssistant:
         "cum ma inregistrez", "cum mă înregistrez",
         "vreau sa ma inscriu", "vreau să mă înscriu",
         "vreau sa incep", "vreau să încep",
+        "interesat să mă înscriu", "interesat sa ma inscriu",
+        "interesat de înscriere", "interesat de inscriere",
     )
 
     _LEVEL_DISPLAY: dict[str, dict[str, str]] = {
