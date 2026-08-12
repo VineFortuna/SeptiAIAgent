@@ -2697,9 +2697,15 @@ APPROVED INFORMATION:
         phone = self._normalize_phone(sender_phone)
         lead = self._get_lead(phone)
 
-        # /resetchat — wipe this user's lead and conversation history
+        # /resetchat — wipe this user's lead and conversation history.
+        # Done inline (not via clear_lead) because _reply_locked already holds _leads_lock.
         if message.strip().lower() == "/resetchat":
-            self.clear_lead(phone)
+            self.leads.pop(phone, None)
+            self._conversation_history.pop(phone, None)
+            if self._db_available:
+                db.delete_lead(phone)
+                db.delete_history(phone)
+            self._save_leads()
             return ["Chat reset 🙂 Let's start fresh — how can I help you?"]
 
         # Any new message clears the "thinking it over" waiting state
