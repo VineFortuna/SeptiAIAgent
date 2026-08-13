@@ -1587,10 +1587,10 @@ class ClassAssistant:
         if lead is None:
             lead = self._create_lead(phone, lang, initial_stage="greeted")
             self._save_leads()
-            # Pure greeting → say hi and wait to see what they need
+            # Pure greeting → introduce ourselves and wait to see what they need
             if message.lower().strip() in self._GREETING_WORDS:
                 if self.ai_enabled:
-                    return self._ai_reply(message, phone)
+                    return self._ai_reply(message, phone, intake_context={"is_intro": True})
                 return self._pick(GREETING_INTRO, lang)
             # Substantive first message → fall through to greeted-stage logic below
             # so we actually respond to what they said instead of ignoring it
@@ -2501,7 +2501,15 @@ class ClassAssistant:
 
         intake_context_note = ""
         if intake_context:
-            if intake_context.get("is_closing"):
+            if intake_context.get("is_intro"):
+                intake_context_note = (
+                    f"\nTask: A parent just said hello for the first time. "
+                    f"Introduce yourself: you are {assistant_name}, Septi's assistant at Sep7Ro. "
+                    f"Keep it warm and brief (1-2 sentences), then invite them to ask anything or "
+                    f"let them know you can help with info about the chess program. "
+                    f"Do NOT ask any questions.\n"
+                )
+            elif intake_context.get("is_closing"):
                 if intake_context.get("demo_interested"):
                     intake_context_note = (
                         "\nTask: The parent just finished providing all their enrollment info and said yes to the demo lesson. "
