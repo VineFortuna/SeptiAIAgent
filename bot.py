@@ -1005,29 +1005,124 @@ class ClassAssistant:
             if multiple_ages or multi_words:
                 lead["multi_child"] = True
 
+    # Phrases that mean "nothing notable" for free-form fields like extra_notes.
+    _NOTIFICATION_NEGATIVES: frozenset[str] = frozenset({
+        "no", "nope", "nah", "none", "nothing", "n/a", "na", "not really",
+        "not right now", "not at the moment", "no thanks", "no thank you",
+        "nothing special", "nothing in particular", "nothing for now",
+        "no notes", "no extra notes", "no additional notes",
+        "nothing else", "nothing to add", "no questions", "no concerns",
+        "nu", "nu prea", "nimic", "nimic special", "nimic deocamdata",
+    })
+
+    def _clean_for_notification(self, field: str, raw: str | None) -> str:
+        """Return a short, clean version of a raw intake answer for Septi's notification."""
+        if not raw:
+            return "-"
+        text = raw.strip()
+        lower = text.lower()
+
+        # Free-form fields: if the answer is essentially "no/nothing", show a dash.
+        if field in ("extra_notes", "referral_source"):
+            if lower in self._NOTIFICATION_NEGATIVES or lower.startswith(("not really", "no ", "nothing", "nope", "nah")):
+                return "-"
+            # Truncate very long answers
+            return text[:80] + ("..." if len(text) > 80 else "")
+
+        if field in ("parent_name", "child_name"):
+            # Strip common "my name is / his name is / I'm …" prefixes.
+            for prefix in (
+                "my name is ", "my name's ", "i'm ", "i am ", "it's ", "its ",
+                "his name is ", "her name is ", "their name is ",
+                "the child's name is ", "child's name is ", "name is ",
+            ):
+                if lower.startswith(prefix):
+                    text = text[len(prefix):]
+                    lower = text.lower()
+                    break
+            return text.strip().title()
+
+        if field == "country":
+            # "Canada, Toronto specifically" → "Canada"
+            text = re.split(r",", text)[0].strip()
+            text = re.sub(
+                r"\s+(?:specifically|particularly|mainly|mostly|especially)\s*$",
+                "", text, flags=re.IGNORECASE,
+            )
+            return text.strip()
+
+        if field == "school_dismissal":
+            # Extract the time expression, drop surrounding filler.
+            # "Anytime after 3:30 is great" → "after 3:30"
+            # "free from 4pm" → "from 4pm"
+            m = re.search(
+                r"\b(?:after|from|around|at|starting)\s+\d{1,2}(?::\d{2})?(?:\s*(?:am|pm))?\b",
+                lower, re.IGNORECASE,
+            )
+            if not m:
+                # Bare "3:30 PM" or "16:00" with optional am/pm
+                m = re.search(r"\b\d{1,2}:\d{2}(?:\s*(?:am|pm))?\b", lower, re.IGNORECASE)
+            return m.group(0).strip() if m else text
+
+        if field == "availability_pref":
+            # "Weekdays, specifically Tuesdays after 3:30 PM" → "Tuesdays after 3:30 PM"
+            cleaned = re.sub(
+                r"\b(?:specifically|usually|generally|mainly|mostly|particularly)\b\s*",
+                "", text, flags=re.IGNORECASE,
+            )
+            # Drop a leading generic day-category if a specific day follows
+            cleaned = re.sub(
+                r"^(?:weekdays|weekends|any day|anytime)[,.]?\s*",
+                "", cleaned, flags=re.IGNORECASE,
+            ).strip().rstrip(",").strip()
+            return cleaned if cleaned else text
+
+        if field == "prior_experience":
+            # Map verbose answers to a clean label when possible.
+            kw_map = [
+                (("no experience", "never played", "never tried", "complete beginner",
+                  "hasn't played", "has not played", "nu a jucat", "fara experienta",
+                  "fără experiență", "deloc"), "No experience"),
+                (("beginner", "just started", "a bit", "little bit", "very basic",
+                  "not much", "basic", "incepator", "începător"), "Beginner"),
+                (("intermediate", "some experience", "decent", "played for",
+                  "intermediate", "mediu"), "Intermediate"),
+                (("advanced", "competitive", "tournaments", "avansat"), "Advanced"),
+            ]
+            for keywords, label in kw_map:
+                if any(kw in lower for kw in keywords):
+                    return label
+            return text
+
+        if field == "group_pref":
+            return text.title()
+
+        return text
+
     def _maybe_notify_staff(self, phone: str, lead: dict[str, Any]) -> None:
+        c = self._clean_for_notification  # shorthand
         lang_pref = lead.get("child_language_pref", "")
         lang_display = "English" if lang_pref == "en" else ("Romanian" if lang_pref == "ro" else lang_pref or "-")
 
-        multi_child_note = " (multiple children mentioned — confirm details)" if lead.get("multi_child") else ""
+        multi_child_note = " (multiple children — confirm details)" if lead.get("multi_child") else ""
         wa_link = f"https://wa.me/{phone.lstrip('+')}"
 
         lines = [
             "New lead ready for follow-up 👋",
             f"WhatsApp: {phone} | {wa_link}",
-            f"Parent: {lead.get('parent_name') or '-'}",
-            f"Child: {lead.get('child_name') or '-'}",
+            f"Parent: {c('parent_name', lead.get('parent_name'))}",
+            f"Child: {c('child_name', lead.get('child_name'))}",
             "",
-            f"Country: {lead.get('country') or '-'}",
+            f"Country: {c('country', lead.get('country'))}",
             f"Class language: {lang_display}",
             f"Time zone: {lead.get('timezone') or '-'}",
             f"Child's age: {lead.get('child_age') or '-'}{multi_child_note}",
-            f"Chess experience: {lead.get('prior_experience') or '-'}",
-            f"Availability: {lead.get('availability_pref') or '-'}",
-            f"Free from: {lead.get('school_dismissal') or '-'}",
-            f"Group preference: {lead.get('group_pref') or '-'}",
-            f"Extra notes: {lead.get('extra_notes') or '-'}",
-            f"Heard about us via: {lead.get('referral_source') or '-'}",
+            f"Chess experience: {c('prior_experience', lead.get('prior_experience'))}",
+            f"Availability: {c('availability_pref', lead.get('availability_pref'))}",
+            f"Free from: {c('school_dismissal', lead.get('school_dismissal'))}",
+            f"Group preference: {c('group_pref', lead.get('group_pref'))}",
+            f"Extra notes: {c('extra_notes', lead.get('extra_notes'))}",
+            f"Heard about us via: {c('referral_source', lead.get('referral_source'))}",
         ]
 
         self.notifier("\n".join(lines))
