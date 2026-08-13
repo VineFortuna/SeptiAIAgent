@@ -774,6 +774,27 @@ class ClassAssistant:
             if m and 3 <= int(m.group(1)) <= 17:
                 return m.group(1)
 
+        if field == "school_dismissal":
+            # If the parent already mentioned a start time ("after 3:30 PM",
+            # "from 4pm", "at 3:30 PM") when answering availability, there's
+            # no need to ask again — extract it directly.
+            lowered = message.lower()
+            # "after/from/around/at/starting X:XX am/pm" or "X:XX am/pm"
+            m = re.search(
+                r"\b(?:after|from|around|at|starting|începând\s+de\s+la|după|de\s+la)\s+"
+                r"(\d{1,2}(?::\d{2})?\s*(?:am|pm))\b",
+                lowered,
+                re.IGNORECASE,
+            )
+            if not m:
+                # bare "3:30 PM" or "16:00" (24h)
+                m = re.search(r"\b(\d{1,2}:\d{2}\s*(?:am|pm)?)\b", lowered, re.IGNORECASE)
+            if m:
+                hour_str = re.search(r"\d{1,2}", m.group(0))
+                # 1–22 covers both 12-hour (1pm = "1") and 24-hour (16:00)
+                if hour_str and 1 <= int(hour_str.group()) <= 22:
+                    return m.group(0).strip()
+
         return None
 
     @staticmethod
