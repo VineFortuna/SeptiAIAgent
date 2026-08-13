@@ -1307,6 +1307,19 @@ class ClassAssistant:
         "auckland": "New Zealand Standard Time (NZST)",
     }
 
+    @staticmethod
+    def _strip_questions(text: str) -> str:
+        """Remove any question sentences from an AI response.
+
+        Used as a safety net on ack_only and suppress_intake_questions responses
+        so the AI can never duplicate the hardcoded question that follows.
+        Splits on sentence-ending punctuation and drops every sentence that ends
+        with '?'. Falls back to the original text if stripping would leave nothing.
+        """
+        parts = re.split(r"(?<=[.!?])\s+", text.strip())
+        kept = [p for p in parts if p.strip() and not p.rstrip().endswith("?")]
+        return " ".join(kept).strip() if kept else text.strip()
+
     def _lookup_city_timezone(self, text: str) -> str | None:
         lowered = text.lower()
         for city, tz in self._CITY_TIMEZONES.items():
@@ -1564,7 +1577,9 @@ class ClassAssistant:
                 lead["updated_at"] = datetime.now(timezone.utc).isoformat()
                 self._save_leads()
                 if self.ai_enabled:
-                    ai_response = self._ai_reply(message, phone, suppress_intake_questions=True)
+                    ai_response = self._strip_questions(
+                        self._ai_reply(message, phone, suppress_intake_questions=True)
+                    )
                     first_q = "child_name" if existing_parent_name else "parent_name"
                     return [ai_response, INTAKE_QUESTIONS[first_q][lang]]
                 first_q = "child_name" if existing_parent_name else "parent_name"
@@ -1660,7 +1675,9 @@ class ClassAssistant:
             # questions alongside the signup intent), then send the first intake
             # question as a separate follow-up message so nothing gets ignored.
             if self.ai_enabled:
-                ai_response = self._ai_reply(message, phone, suppress_intake_questions=True)
+                ai_response = self._strip_questions(
+                    self._ai_reply(message, phone, suppress_intake_questions=True)
+                )
                 return [ai_response, INTAKE_QUESTIONS["parent_name"][lang]]
 
             # No AI available — fall back to the hardcoded transition.
@@ -1827,10 +1844,12 @@ class ClassAssistant:
                 # AI only acknowledges what the parent said — the hardcoded next question
                 # is always appended as a separate message so the AI can never skip fields,
                 # combine questions, or ask something different.
-                ai_ack = self._ai_reply(message, phone, intake_context={
+                # _strip_questions is a hard safety net: if the AI still sneaks a question
+                # into the ack, we remove it before the user ever sees it.
+                ai_ack = self._strip_questions(self._ai_reply(message, phone, intake_context={
                     "just_collected": pending_field,
                     "ack_only": True,
-                })
+                }))
                 return [ai_ack, INTAKE_QUESTIONS[next_field][lang]]
             return [self._pick(INTAKE_ACK, lang), INTAKE_QUESTIONS[next_field][lang]]
 
