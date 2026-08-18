@@ -1282,15 +1282,26 @@ class ClassAssistant:
     })
 
     # Phrases that should NEVER be accepted as a name answer — they're
-    # conversational confirmations / filler, not an actual name.
+    # conversational confirmations, filler, or privacy refusals, not a name.
+    # Also used as first-word check: if a message STARTS with one of these
+    # words it's not a name (e.g. "okay im ready", "idk if comfortable").
     _NAME_NON_ANSWERS: frozenset[str] = frozenset({
+        # Confirmations / filler
         "ok", "okay", "ok go ahead", "okay go ahead",
         "go ahead", "sure", "sure go ahead", "yes", "yeah", "yep", "yup",
         "ready", "i'm ready", "im ready",
         "sounds good", "alright", "alright go ahead",
         "let's go", "lets go", "let's start", "lets start",
         "proceed", "continue",
-        "da", "bine", "bine mergi", "hai",  # Romanian equivalents
+        # Hesitation / non-answer starters — catches "idk if comfortable",
+        # "not sure I want to share", "prefer not to say", etc.
+        "idk", "idek", "idc", "dunno",
+        "not", "prefer", "rather", "dont", "don't",
+        "i'd", "id", "i'm not", "im not",
+        "no thanks", "no thank you",
+        # Romanian equivalents
+        "da", "bine", "bine mergi", "hai",
+        "nu vreau", "nu stiu", "nu știu", "prefer sa nu",
     })
 
     # Maps lowercase city names to a human-readable timezone string for Septi.
@@ -1453,13 +1464,19 @@ class ClassAssistant:
         if text in self._NON_ANSWERS:
             return False
 
-        # Names must not be a generic confirmation phrase (exact match) OR
-        # start with a confirmation word ("okay im ready ask whenever" → "okay").
+        # Names must not be a confirmation phrase, filler, or privacy refusal.
+        # Checked both as exact match and as first-word so multi-word answers
+        # like "okay im ready" or "idk if im comfortable sharing" are caught.
         if field in ("parent_name", "child_name"):
             if text in self._NAME_NON_ANSWERS:
                 return False
             first_word = text.split()[0] if text.split() else ""
-            return first_word not in self._NAME_NON_ANSWERS
+            if first_word in self._NAME_NON_ANSWERS:
+                return False
+            # Also reject if the first word is a plain non-answer word
+            # (e.g. "not sure", "dunno" caught by exact match above, but
+            # "not comfortable...", "dunno actually..." caught here).
+            return first_word not in self._NON_ANSWERS
 
         if field == "child_age":
             return bool(re.search(r"\d", message))
