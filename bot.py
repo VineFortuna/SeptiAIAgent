@@ -1281,6 +1281,25 @@ class ClassAssistant:
         "hm", "hmm", "huh", "lol",
     })
 
+    # Substring signals that mean "let's keep going" rather than answering
+    # the pending question. Checked via `in` so partial matches like
+    # "yes lets cont\" still trigger. Never valid for open-ended fields.
+    _CONTINUATION_SIGNALS: tuple[str, ...] = (
+        "lets continue", "let's continue", "let us continue",
+        "lets keep going", "let's keep going",
+        "yes lets", "yes let's",
+        "ok lets go", "ok let's go",
+        "okay lets", "okay let's",
+        "yes continue", "ok continue", "okay continue",
+        "yes proceed", "ok proceed", "okay proceed",
+        "continue please", "please continue",
+        "ready to continue", "ready for more",
+        "back to questions", "next question",
+        # Romanian
+        "hai sa continuam", "hai să continuăm",
+        "continuam", "continuăm", "da continuam",
+    )
+
     # Phrases that should NEVER be accepted as a name answer — they're
     # conversational confirmations, filler, or privacy refusals, not a name.
     # Also used as first-word check: if a message STARTS with one of these
@@ -1488,6 +1507,12 @@ class ClassAssistant:
             return True
 
         if text in self._NON_ANSWERS:
+            return False
+
+        # Continuation phrases ("yes lets continue", "ok lets go", etc.) mean
+        # the user is ready to keep going — not answering the pending question.
+        # Reject for all fields except demo_interest (where "yes" is the answer).
+        if field != "demo_interest" and any(sig in text for sig in self._CONTINUATION_SIGNALS):
             return False
 
         # Names must not be a confirmation phrase, filler, or privacy refusal.
