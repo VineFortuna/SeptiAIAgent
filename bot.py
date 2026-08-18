@@ -1435,6 +1435,28 @@ class ClassAssistant:
     }
 
     @staticmethod
+    def _is_name_skip_request(message: str) -> bool:
+        """Return True if the parent is clearly refusing to share a name rather
+        than giving a vague/unclear answer — so we skip the field and move on
+        instead of re-asking.
+        """
+        lower = message.lower()
+        # Explicit skip words
+        if any(w in lower for w in ("skip", "pass on that", "privacy")):
+            return True
+        # Negative + sharing-related word combination
+        _negatives = (
+            "don't want", "dont want", "do not want",
+            "not comfortable", "not willing",
+            "prefer not", "rather not",
+            "idk if", "not sure if", "unsure if",
+        )
+        _sharing = ("share", "give", "say", "tell", "provide")
+        has_neg = any(n in lower for n in _negatives)
+        has_share = any(s in lower for s in _sharing)
+        return has_neg and has_share
+
+    @staticmethod
     def _strip_questions(text: str) -> str:
         """Remove any question sentences from an AI response.
 
@@ -1893,6 +1915,24 @@ class ClassAssistant:
             self._rule_based_reply(message, phone) or self._mentions_ai_topic(message)
         ):
             return None
+
+        # Name fields — if the parent explicitly refuses to share, skip the field
+        # gracefully and move on rather than re-asking over and over.
+        if pending_field in ("parent_name", "child_name") and self._is_name_skip_request(message):
+            self._store_intake_answer(lead, pending_field, "—")
+            next_field = self._next_missing_field(lead)
+            if next_field is not None:
+                self._save_leads()
+                if self.ai_enabled:
+                    ai_ack = self._strip_questions(self._ai_reply(message, phone, intake_context={
+                        "just_collected": pending_field,
+                        "ack_only": True,
+                    }))
+                    return [ai_ack, INTAKE_QUESTIONS[next_field][lang]]
+                return [
+                    "No worries 🙂" if lang == "en" else "Nicio problemă 🙂",
+                    INTAKE_QUESTIONS[next_field][lang],
+                ]
 
         # Reject answers that don't make sense for the question being asked.
         # Bare digits count as length-1 so skip the length check for child_age;
