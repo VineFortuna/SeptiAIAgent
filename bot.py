@@ -1923,16 +1923,9 @@ class ClassAssistant:
             next_field = self._next_missing_field(lead)
             if next_field is not None:
                 self._save_leads()
-                if self.ai_enabled:
-                    ai_ack = self._strip_questions(self._ai_reply(message, phone, intake_context={
-                        "just_collected": pending_field,
-                        "ack_only": True,
-                    }))
-                    return [ai_ack, INTAKE_QUESTIONS[next_field][lang]]
-                return [
-                    "No worries 🙂" if lang == "en" else "Nicio problemă 🙂",
-                    INTAKE_QUESTIONS[next_field][lang],
-                ]
+                # Hardcode the ack — never use AI here, it adds unnecessary filler
+                ack = "No worries 🙂" if lang == "en" else "Nicio problemă 🙂"
+                return [ack, INTAKE_QUESTIONS[next_field][lang]]
 
         # Reject answers that don't make sense for the question being asked.
         # Bare digits count as length-1 so skip the length check for child_age;
