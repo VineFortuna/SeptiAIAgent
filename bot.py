@@ -1447,11 +1447,15 @@ class ClassAssistant:
         # Negative + sharing-related word combination
         _negatives = (
             "don't want", "dont want", "do not want",
-            "not comfortable", "not willing",
+            "don't wanna", "dont wanna",
+            "not comfortable", "uncomfortable",
+            "not willing",
             "prefer not", "rather not",
             "idk if", "not sure if", "unsure if",
+            "don't feel comfortable", "dont feel comfortable",
         )
-        _sharing = ("share", "give", "say", "tell", "provide")
+        # Use stems so "sharing"/"giving"/"telling" all match
+        _sharing = ("shar", "giv", "say", "tell", "provid", "reveal")
         has_neg = any(n in lower for n in _negatives)
         has_share = any(s in lower for s in _sharing)
         return has_neg and has_share
